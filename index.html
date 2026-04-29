@@ -1,0 +1,4073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WebCAD — Personal CAD</title>
+<style>
+:root {
+  --bg: #f7f7f8;
+  --panel: #ffffff;
+  --panel-2: #fafafa;
+  --border: #e5e5e7;
+  --border-soft: #ececef;
+  --ink: #1a1a1f;
+  --ink-2: #4a4a55;
+  --muted: #8a8a95;
+  --hover: #f0f0f3;
+  --active-bg: #eef2ff;
+  --active-ink: #2c4be3;
+  --accent: #2c4be3;
+  --accent-soft: #e7ecff;
+  --canvas-bg: #fafafa;
+  --shadow: 0 1px 2px rgba(15,15,30,0.04), 0 0 0 1px rgba(15,15,30,0.04);
+}
+body.theme-dark {
+  --bg: #1a1a1d;
+  --panel: #232327;
+  --panel-2: #1f1f22;
+  --border: #2e2e33;
+  --border-soft: #29292d;
+  --ink: #ececf0;
+  --ink-2: #b8b8c0;
+  --muted: #6e6e78;
+  --hover: #2c2c30;
+  --active-bg: #21307a;
+  --active-ink: #cfd8ff;
+  --accent: #6c8aff;
+  --accent-soft: #1f2a55;
+  --canvas-bg: #16161a;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; width: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; user-select: none; }
+body { background: var(--bg); color: var(--ink); display: flex; flex-direction: column; font-size: 13px; }
+
+#topbar { background: var(--panel); border-bottom: 1px solid var(--border); padding: 6px 10px; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+#topbar button, #topbar select { background: var(--panel); color: var(--ink); border: 1px solid var(--border); padding: 5px 10px; cursor: pointer; font-size: 12px; border-radius: 6px; transition: background 80ms ease, border-color 80ms ease; }
+#topbar button:hover { background: var(--hover); border-color: var(--border-soft); }
+#topbar .sep { width: 1px; height: 18px; background: var(--border); margin: 0 6px; }
+#topbar .group-label { font-size: 11px; color: var(--muted); margin-right: 4px; letter-spacing: 0.02em; }
+
+#main { flex: 1; display: flex; min-height: 0; overflow: hidden; }
+
+#toolbar { width: 50px; background: var(--panel); border-right: 1px solid var(--border); padding: 6px; display: flex; flex-direction: column; gap: 2px; min-height: 0; overflow-y: auto; flex-shrink: 0; scrollbar-width: thin; }
+#toolbar::-webkit-scrollbar { width: 4px; }
+#toolbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+#toolbar button { background: transparent; color: var(--ink); border: 1px solid transparent; padding: 4px; cursor: pointer; font-size: 14px; border-radius: 6px; height: 30px; min-height: 30px; display: flex; align-items: center; justify-content: center; transition: background 80ms ease; flex-shrink: 0; }
+#toolbar button:hover { background: var(--hover); }
+#toolbar button.active { background: var(--active-bg); color: var(--active-ink); border-color: transparent; }
+#toolbar .tool-sep { height: 1px; background: var(--border); margin: 4px 4px; flex-shrink: 0; }
+
+#canvas-wrap { flex: 1; position: relative; min-width: 0; background: var(--canvas-bg); }
+#canvas { display: block; cursor: crosshair; outline: none; }
+
+#right-panel { width: 248px; background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; overflow-y: auto; flex-shrink: 0; }
+.panel-section { border-bottom: 1px solid var(--border); }
+.panel-header { background: var(--panel); padding: 8px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+.panel-body { padding: 6px 10px 10px; max-height: 300px; overflow-y: auto; font-size: 12px; }
+
+.layer-row { display: flex; align-items: center; gap: 6px; padding: 4px 6px; cursor: pointer; border-radius: 6px; }
+.layer-row:hover { background: var(--hover); }
+.layer-row.active { background: var(--active-bg); color: var(--active-ink); }
+.layer-row .swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--border); cursor: pointer; flex-shrink: 0; }
+.layer-row .vis, .layer-row .lock { width: 18px; text-align: center; cursor: pointer; opacity: 0.6; font-size: 12px; }
+.layer-row .vis:hover, .layer-row .lock:hover { opacity: 1; }
+.layer-row .name { flex: 1; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+
+.prop-row { display: flex; align-items: center; padding: 3px 0; gap: 6px; }
+.prop-row label { font-size: 11px; color: var(--muted); width: 78px; flex-shrink: 0; }
+.prop-row input, .prop-row select { background: var(--panel-2); color: var(--ink); border: 1px solid var(--border); padding: 3px 6px; flex: 1; font-size: 12px; border-radius: 4px; }
+.prop-row input:focus, .prop-row select:focus { outline: none; border-color: var(--accent); }
+
+#layer-add { background: var(--panel); color: var(--ink); border: 1px solid var(--border); padding: 1px 8px; cursor: pointer; border-radius: 4px; font-size: 12px; }
+#layer-add:hover { background: var(--hover); }
+
+#bottom { background: var(--panel); padding: 0; font-size: 12px; display: flex; flex-direction: column; border-top: 1px solid var(--border); flex-shrink: 0; }
+#cmdline { display: flex; background: var(--panel); color: var(--ink); padding: 6px 12px; font-family: "SF Mono", "Menlo", monospace; font-size: 12px; }
+#cmdline .prompt { color: var(--accent); margin-right: 8px; white-space: nowrap; font-weight: 500; }
+#cmdline input { background: var(--panel-2); border: 1px solid var(--border); outline: none; color: var(--ink); flex: 1; font-family: inherit; font-size: inherit; padding: 3px 8px; border-radius: 4px; }
+#cmdline input:focus { border-color: var(--accent); }
+#cmdhistory { background: var(--panel-2); color: var(--ink-2); padding: 4px 12px; font-family: "SF Mono", "Menlo", monospace; font-size: 11px; max-height: 60px; overflow-y: auto; border-top: 1px solid var(--border-soft); }
+#cmdhistory .err { color: #d83a3a; }
+#cmdhistory .info { color: var(--accent); }
+#statusbar { display: flex; gap: 14px; padding: 4px 12px; font-family: "SF Mono", "Menlo", monospace; font-size: 11px; background: var(--panel-2); color: var(--ink-2); border-top: 1px solid var(--border-soft); }
+#statusbar .toggle { cursor: pointer; padding: 2px 8px; border-radius: 4px; color: var(--muted); }
+#statusbar .toggle.on { background: var(--active-bg); color: var(--active-ink); font-weight: 500; }
+#statusbar .toggle:hover { background: var(--hover); }
+
+.modal-bg { position: absolute; inset: 0; background: rgba(15,15,30,0.30); display: flex; align-items: center; justify-content: center; z-index: 2000; }
+.modal { background: var(--panel); padding: 24px; border-radius: 10px; min-width: 320px; box-shadow: 0 8px 32px rgba(15,15,30,0.18); }
+.modal h3 { margin-bottom: 14px; font-size: 14px; color: var(--ink); }
+.modal .row { display: flex; gap: 8px; margin: 6px 0; align-items: center; }
+.modal .row label { width: 100px; font-size: 12px; color: var(--muted); }
+.modal .row input { flex: 1; background: var(--panel-2); color: var(--ink); border: 1px solid var(--border); padding: 5px 8px; border-radius: 4px; }
+.modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.modal .actions button { background: var(--panel); color: var(--ink); border: 1px solid var(--border); padding: 6px 14px; cursor: pointer; border-radius: 6px; }
+.modal .actions button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+
+#help-overlay { position: absolute; top: 12px; right: 12px; width: 360px; max-height: calc(100% - 24px); background: var(--panel); border: 1px solid var(--border); padding: 14px 18px; font-size: 12px; line-height: 1.55; overflow-y: auto; display: none; z-index: 500; border-radius: 10px; box-shadow: 0 8px 32px rgba(15,15,30,0.10); }
+#help-overlay h3 { margin: 10px 0 4px; color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+#help-overlay code { background: var(--panel-2); padding: 1px 5px; border-radius: 3px; color: var(--ink); font-family: "SF Mono", "Menlo", monospace; font-size: 11px; border: 1px solid var(--border); }
+#help-overlay table { font-size: 11px; width: 100%; }
+#help-overlay td { padding: 3px 6px; color: var(--ink-2); }
+#help-overlay td:first-child { width: 75px; }
+
+.components-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.components-grid .comp { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px; gap: 2px; transition: background 80ms; }
+.components-grid .comp:hover { background: var(--hover); border-color: var(--accent); }
+.components-grid .comp svg { width: 36px; height: 36px; }
+.components-grid .comp .label { font-size: 9px; color: var(--muted); text-align: center; }
+
+#tooltip {
+  position: fixed;
+  background: #1a1a1f;
+  color: #f5f5f7;
+  padding: 8px 11px;
+  border-radius: 6px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 3000;
+  max-width: 260px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.10);
+  line-height: 1.45;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 90ms ease, transform 90ms ease;
+}
+#tooltip.show { opacity: 1; transform: translateX(0); }
+#tooltip .tt-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+#tooltip .tt-name { font-weight: 600; color: #ffffff; font-size: 12px; }
+#tooltip .tt-key { background: rgba(255,255,255,0.10); padding: 1px 6px; border-radius: 3px; font-family: "SF Mono", "Menlo", monospace; font-size: 10px; color: #b5c0e8; flex-shrink: 0; }
+#tooltip .tt-desc { color: rgba(255,255,255,0.62); font-size: 11px; margin-top: 4px; }
+#tooltip::before {
+  content: ''; position: absolute;
+  border: 5px solid transparent;
+}
+#tooltip.arrow-left::before { left: -5px; top: 50%; transform: translateY(-50%); border-right-color: #1a1a1f; }
+#tooltip.arrow-top::before { top: -5px; left: 16px; border-bottom-color: #1a1a1f; }
+#tooltip.arrow-bottom::before { bottom: -5px; left: 16px; border-top-color: #1a1a1f; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <button id="btn-new" data-tt-name="New Drawing" data-tt-desc="Discard current drawing and start a fresh empty canvas.">New</button>
+  <button id="btn-open" data-tt-name="Open File" data-tt-key="Ctrl+O" data-tt-desc="Load a previously saved drawing from a JSON file on your computer.">Open</button>
+  <button id="btn-save" data-tt-name="Save File" data-tt-key="Ctrl+S" data-tt-desc="Save the current drawing as a JSON file. Stays on your machine — nothing uploaded.">Save</button>
+  <button id="btn-export-svg" data-tt-name="Export SVG" data-tt-desc="Export drawing as a scalable vector graphic. Good for printing or sharing.">SVG</button>
+  <button id="btn-export-png" data-tt-name="Export PNG" data-tt-desc="Export the current view as a raster image (high-DPI).">PNG</button>
+  <div class="sep"></div>
+  <button id="btn-undo" data-tt-name="Undo" data-tt-key="Ctrl+Z" data-tt-desc="Step back through recent edits (up to 100 levels).">↶ Undo</button>
+  <button id="btn-redo" data-tt-name="Redo" data-tt-key="Ctrl+Y" data-tt-desc="Reapply an action you just undid.">↷ Redo</button>
+  <div class="sep"></div>
+  <button id="btn-zoom-extents" data-tt-name="Zoom Extents" data-tt-key="ZE" data-tt-desc="Fit all visible objects into the viewport.">Zoom Ext</button>
+  <button id="btn-zoom-in" data-tt-name="Zoom In" data-tt-desc="Zoom in around the canvas center.">+</button>
+  <button id="btn-zoom-out" data-tt-name="Zoom Out" data-tt-desc="Zoom out around the canvas center.">−</button>
+  <div class="sep"></div>
+  <span class="group-label">Units:</span>
+  <select id="units-select">
+    <option value="mm">mm</option>
+    <option value="cm">cm</option>
+    <option value="m">m</option>
+    <option value="in">in</option>
+    <option value="ft" selected>ft</option>
+  </select>
+  <div class="sep"></div>
+  <button id="btn-theme" data-tt-name="Toggle Theme" data-tt-desc="Switch between Rayon-style light theme and a dark theme. Choice is saved.">◐</button>
+  <button id="btn-help" data-tt-name="Help" data-tt-desc="Show all keyboard shortcuts and command-line aliases in a side panel.">? Help</button>
+</div>
+
+<div id="main">
+
+  <div id="toolbar">
+    <button data-tool="select" data-tt-name="Select" data-tt-key="S / Esc" data-tt-desc="Pick objects to edit. Click for one, Shift-click to add, drag a window to select many. Drag right-to-left for crossing select.">▭</button>
+    <div class="tool-sep"></div>
+    <button data-tool="wall" data-tt-name="Wall" data-tt-key="W" data-tt-desc="Draw walls with thickness and auto-mitered corners. Click each corner; Enter to end, C to close. Asks for thickness on activation." style="font-weight:600">▥</button>
+    <button data-tool="door" data-tt-name="Door" data-tt-key="D" data-tt-desc="Place a door with its swing arc. Click the hinge point on a wall, then click the direction it opens. Auto-aligns to the nearest wall.">⌒↤</button>
+    <button data-tool="window" data-tt-name="Window" data-tt-key="WIN" data-tt-desc="Insert a window into a wall as a double-line glass with frame caps. Click two points along the wall.">▦</button>
+    <button data-tool="room" data-tt-name="Room" data-tt-key="R" data-tt-desc="Click inside a closed area bounded by walls or lines — auto-detects the boundary and labels the room with a name and computed area in sq ft.">⌂</button>
+    <div class="tool-sep"></div>
+    <button data-tool="line" data-tt-name="Line" data-tt-key="L" data-tt-desc="Draws line segments. Click each endpoint; the next line continues from the last point. Enter to end.">/</button>
+    <button data-tool="polyline" data-tt-name="Polyline" data-tt-key="PL" data-tt-desc="A connected chain of line segments treated as one object. Press C to close, Enter to finish.">⌇</button>
+    <button data-tool="rectangle" data-tt-name="Rectangle" data-tt-key="REC" data-tt-desc="Draw a rectangle by clicking two opposite corners.">▢</button>
+    <button data-tool="circle" data-tt-name="Circle" data-tt-key="C" data-tt-desc="Click the center, then click a point to set the radius.">○</button>
+    <button data-tool="arc" data-tt-name="Arc (3-point)" data-tt-key="A" data-tt-desc="Click start, then any point on the arc, then the end. The arc is fit through all three points.">⌒</button>
+    <button data-tool="ellipse" data-tt-name="Ellipse" data-tt-key="EL" data-tt-desc="Click the center, then the end of one axis, then the distance to the other axis.">⬭</button>
+    <div class="tool-sep"></div>
+    <button data-tool="text" data-tt-name="Text" data-tt-key="T" data-tt-desc="Place a single line of text. Click position, type the text, then enter the height.">T</button>
+    <button data-tool="dimension" data-tt-name="Linear Dimension" data-tt-key="DLI" data-tt-desc="Measure distance between two points. Click first extension point, second point, then where the dim line should sit. Auto-formats in feet/inches.">↔</button>
+    <button data-tool="hatch" data-tt-name="Hatch" data-tt-key="H" data-tt-desc="Fill a closed polyline with a solid color or angled line pattern. Pick the closed boundary first.">▦</button>
+    <div class="tool-sep"></div>
+    <button data-tool="erase" data-tt-name="Erase" data-tt-key="E / Delete" data-tt-desc="Delete objects by clicking them, or select first and press Delete.">✕</button>
+    <button data-tool="move" data-tt-name="Move" data-tt-key="M" data-tt-desc="Select objects, click a base point, then click the destination. Live ghost preview shows where things will land.">⤧</button>
+    <button data-tool="copy" data-tt-name="Copy" data-tt-key="CO" data-tt-desc="Like Move but creates duplicates. Stays active so you can drop multiple copies. Esc to finish.">⎘</button>
+    <button data-tool="rotate" data-tt-name="Rotate" data-tt-key="RO" data-tt-desc="Select, click a pivot point, then click to set the rotation angle.">↻</button>
+    <button data-tool="mirror" data-tt-name="Mirror" data-tt-key="MI" data-tt-desc="Flip objects across a line. Select, click the two endpoints of the mirror line. Choose to keep or delete the source.">⇋</button>
+    <button data-tool="scale" data-tt-name="Scale" data-tt-key="SC" data-tt-desc="Resize objects uniformly around a base point. Drag distance from base sets the scale factor.">⤢</button>
+    <button data-tool="offset" data-tt-name="Offset" data-tt-key="O" data-tt-desc="Create a parallel copy of an object at a fixed distance. Type the distance, click an object, then click which side to offset toward.">⫽</button>
+    <button data-tool="trim" data-tt-name="Trim" data-tt-key="TR" data-tt-desc="Cut a line or circle at its intersections with other objects. Click the segment you want to remove.">⌧</button>
+    <button data-tool="fillet" data-tt-name="Fillet" data-tt-key="F" data-tt-desc="Round a corner between two lines with an arc of given radius. Type radius, click each line.">⌐</button>
+  </div>
+
+  <div id="canvas-wrap">
+    <canvas id="canvas" tabindex="0"></canvas>
+    <div id="help-overlay"></div>
+  </div>
+
+  <div id="right-panel">
+    <div class="panel-section">
+      <div class="panel-header">
+        <span>Layers</span>
+        <span><button id="layer-add" style="background:#3c3c3c;color:#ddd;border:1px solid #555;padding:1px 6px;cursor:pointer;">+</button></span>
+      </div>
+      <div class="panel-body" id="layers-list"></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-header"><span>Properties</span></div>
+      <div class="panel-body" id="properties"></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-header"><span>Components</span></div>
+      <div class="panel-body" id="components-list"></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-header"><span>Snap</span></div>
+      <div class="panel-body" id="snap-options"></div>
+    </div>
+  </div>
+</div>
+
+<div id="bottom">
+  <div id="cmdhistory"></div>
+  <div id="cmdline">
+    <span class="prompt" id="cmd-prompt">Command:</span>
+    <input id="cmd-input" autocomplete="off" spellcheck="false" placeholder="Type a command (L, C, REC, M, ...) or click a tool">
+  </div>
+  <div id="statusbar">
+    <span id="coords">0.0000, 0.0000</span>
+    <span class="toggle on" id="t-grid" data-tt-name="Grid" data-tt-key="F7" data-tt-desc="Show or hide the background grid (minor + major lines).">GRID</span>
+    <span class="toggle" id="t-ortho" data-tt-name="Ortho" data-tt-key="F8" data-tt-desc="Constrain the cursor to horizontal or vertical only — pick whichever axis is closer.">ORTHO</span>
+    <span class="toggle on" id="t-snap" data-tt-name="Object Snap" data-tt-key="F3" data-tt-desc="Snap the cursor to endpoints, midpoints, centers, intersections, and alignment guides.">SNAP</span>
+    <span class="toggle" id="t-polar" data-tt-name="Polar Tracking" data-tt-key="F10" data-tt-desc="Constrain the cursor to multiples of 45° from the last point.">POLAR</span>
+    <span id="zoom-info">100%</span>
+    <span id="entity-count">0 entities</span>
+    <span id="rooms-info"></span>
+    <span id="status-tool" style="margin-left:auto">SELECT</span>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<input type="file" id="file-input" accept=".json" style="display:none">
+
+<script>
+'use strict';
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const state = {
+  entities: new Map(),
+  layers: new Map(),
+  activeLayerId: null,
+  selection: new Set(),
+  viewport: { x: 0, y: 0, scale: 20 }, // scale = pixels per world unit
+  grid: { enabled: true, size: 1, majorEvery: 10 },
+  ortho: false,
+  polar: false,
+  polarAngles: [0, 45, 90, 135, 180, 225, 270, 315],
+  snapEnabled: true,
+  snapTypes: { endpoint: true, midpoint: true, center: true, intersection: true, perpendicular: true, quadrant: true, grid: true, nearest: false },
+  snapDistance: 12, // pixels
+  units: 'ft',
+  activeTool: null,
+  cursor: { world: { x: 0, y: 0 }, screen: { x: 0, y: 0 }, snap: null },
+  history: [],
+  historyIndex: -1,
+  isDirty: false,
+  clipboard: [],
+};
+
+let canvas, ctx;
+let nextId = 1;
+const newId = () => 'e' + (nextId++);
+
+/* ============================================================
+   GEOMETRY UTILITIES
+   ============================================================ */
+const G = {
+  dist: (a, b) => Math.hypot(b.x - a.x, b.y - a.y),
+  angle: (a, b) => Math.atan2(b.y - a.y, b.x - a.x),
+  add: (a, b) => ({ x: a.x + b.x, y: a.y + b.y }),
+  sub: (a, b) => ({ x: a.x - b.x, y: a.y - b.y }),
+  mul: (a, s) => ({ x: a.x * s, y: a.y * s }),
+  rot: (p, c, ang) => {
+    const cs = Math.cos(ang), sn = Math.sin(ang);
+    const dx = p.x - c.x, dy = p.y - c.y;
+    return { x: c.x + dx * cs - dy * sn, y: c.y + dx * sn + dy * cs };
+  },
+  scaleAbout: (p, c, s) => ({ x: c.x + (p.x - c.x) * s, y: c.y + (p.y - c.y) * s }),
+  mirrorAbout: (p, a, b) => {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    if (len2 === 0) return { x: 2 * a.x - p.x, y: 2 * a.y - p.y };
+    const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+    const fx = a.x + t * dx, fy = a.y + t * dy;
+    return { x: 2 * fx - p.x, y: 2 * fy - p.y };
+  },
+  // closest point on segment ab to p
+  closestOnSegment: (p, a, b) => {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    if (len2 === 0) return { ...a };
+    let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+    t = Math.max(0, Math.min(1, t));
+    return { x: a.x + t * dx, y: a.y + t * dy };
+  },
+  // closest point on infinite line through a,b
+  closestOnLine: (p, a, b) => {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    if (len2 === 0) return { ...a };
+    const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+    return { x: a.x + t * dx, y: a.y + t * dy };
+  },
+  // line-line intersection (segments). Returns null or {x,y,t1,t2}
+  segSegIntersect: (a, b, c, d) => {
+    const r = { x: b.x - a.x, y: b.y - a.y };
+    const s = { x: d.x - c.x, y: d.y - c.y };
+    const denom = r.x * s.y - r.y * s.x;
+    if (Math.abs(denom) < 1e-10) return null;
+    const t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / denom;
+    const u = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / denom;
+    if (t < -1e-9 || t > 1 + 1e-9 || u < -1e-9 || u > 1 + 1e-9) return null;
+    return { x: a.x + t * r.x, y: a.y + t * r.y, t, u };
+  },
+  // infinite line intersection
+  lineLineIntersect: (a, b, c, d) => {
+    const r = { x: b.x - a.x, y: b.y - a.y };
+    const s = { x: d.x - c.x, y: d.y - c.y };
+    const denom = r.x * s.y - r.y * s.x;
+    if (Math.abs(denom) < 1e-10) return null;
+    const t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / denom;
+    return { x: a.x + t * r.x, y: a.y + t * r.y, t };
+  },
+  // line-circle intersection. Returns array of {x,y}
+  lineCircleIntersect: (a, b, c, r) => {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const fx = a.x - c.x, fy = a.y - c.y;
+    const A = dx * dx + dy * dy;
+    const B = 2 * (fx * dx + fy * dy);
+    const C = fx * fx + fy * fy - r * r;
+    const disc = B * B - 4 * A * C;
+    if (disc < 0) return [];
+    const sq = Math.sqrt(disc);
+    const t1 = (-B - sq) / (2 * A);
+    const t2 = (-B + sq) / (2 * A);
+    const out = [];
+    if (t1 >= -1e-9 && t1 <= 1 + 1e-9) out.push({ x: a.x + t1 * dx, y: a.y + t1 * dy, t: t1 });
+    if (t2 >= -1e-9 && t2 <= 1 + 1e-9 && Math.abs(t1 - t2) > 1e-9) out.push({ x: a.x + t2 * dx, y: a.y + t2 * dy, t: t2 });
+    return out;
+  },
+  // returns true if angle theta is within arc from sa to ea (CCW)
+  angleInArc: (theta, sa, ea) => {
+    const norm = (a) => { while (a < 0) a += Math.PI * 2; while (a >= Math.PI * 2) a -= Math.PI * 2; return a; };
+    let s = norm(sa), e = norm(ea), t = norm(theta);
+    if (e < s) e += Math.PI * 2;
+    if (t < s) t += Math.PI * 2;
+    return t <= e + 1e-9;
+  },
+  pointInPoly: (p, pts) => {
+    let inside = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
+      if (((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi)) inside = !inside;
+    }
+    return inside;
+  },
+  // perpendicular point from external point onto a line through a,b
+  perpendicularToLine: (p, a, b) => G.closestOnLine(p, a, b),
+  snapAngle: (from, to, step = Math.PI / 4) => {
+    const d = G.dist(from, to);
+    const a = G.angle(from, to);
+    const snapped = Math.round(a / step) * step;
+    return { x: from.x + d * Math.cos(snapped), y: from.y + d * Math.sin(snapped) };
+  },
+};
+
+/* ============================================================
+   TRANSFORMS
+   ============================================================ */
+function w2s(p) {
+  return {
+    x: (p.x - state.viewport.x) * state.viewport.scale + CW() / 2,
+    y: CH() / 2 - (p.y - state.viewport.y) * state.viewport.scale,
+  };
+}
+function s2w(p) {
+  return {
+    x: (p.x - CW() / 2) / state.viewport.scale + state.viewport.x,
+    y: state.viewport.y - (p.y - CH() / 2) / state.viewport.scale,
+  };
+}
+function pxToWorld(px) { return px / state.viewport.scale; }
+
+/* ============================================================
+   LAYERS
+   ============================================================ */
+function addLayer(name, color) {
+  const id = 'L' + state.layers.size;
+  const layer = { id, name: name || ('Layer ' + state.layers.size), color: color || '#dddddd', visible: true, locked: false, lineWeight: 1 };
+  state.layers.set(id, layer);
+  if (!state.activeLayerId) state.activeLayerId = id;
+  return layer;
+}
+function deleteLayer(id) {
+  if (state.layers.size <= 1) { logMsg('Cannot delete last layer', 'err'); return; }
+  // Move entities on this layer to active or first remaining
+  const remaining = [...state.layers.keys()].filter(x => x !== id);
+  const target = remaining.includes(state.activeLayerId) ? state.activeLayerId : remaining[0];
+  for (const ent of state.entities.values()) if (ent.layer === id) ent.layer = target;
+  state.layers.delete(id);
+  if (state.activeLayerId === id) state.activeLayerId = target;
+}
+
+/* ============================================================
+   ENTITIES
+   ============================================================ */
+const Ent = {
+  bbox(e) {
+    switch (e.type) {
+      case 'line': return { min: { x: Math.min(e.x1, e.x2), y: Math.min(e.y1, e.y2) }, max: { x: Math.max(e.x1, e.x2), y: Math.max(e.y1, e.y2) } };
+      case 'polyline': {
+        let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+        for (const p of e.points) { mnx = Math.min(mnx, p.x); mny = Math.min(mny, p.y); mxx = Math.max(mxx, p.x); mxy = Math.max(mxy, p.y); }
+        return { min: { x: mnx, y: mny }, max: { x: mxx, y: mxy } };
+      }
+      case 'circle': return { min: { x: e.cx - e.r, y: e.cy - e.r }, max: { x: e.cx + e.r, y: e.cy + e.r } };
+      case 'arc': return { min: { x: e.cx - e.r, y: e.cy - e.r }, max: { x: e.cx + e.r, y: e.cy + e.r } }; // approx
+      case 'ellipse': return { min: { x: e.cx - Math.max(e.rx, e.ry), y: e.cy - Math.max(e.rx, e.ry) }, max: { x: e.cx + Math.max(e.rx, e.ry), y: e.cy + Math.max(e.rx, e.ry) } };
+      case 'text': return { min: { x: e.x, y: e.y }, max: { x: e.x + (e.text.length * e.height * 0.6), y: e.y + e.height } };
+      case 'dimension': {
+        const pts = [e.p1, e.p2, e.dimLinePt];
+        let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+        for (const p of pts) { mnx = Math.min(mnx, p.x); mny = Math.min(mny, p.y); mxx = Math.max(mxx, p.x); mxy = Math.max(mxy, p.y); }
+        return { min: { x: mnx, y: mny }, max: { x: mxx, y: mxy } };
+      }
+      case 'hatch': {
+        let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+        for (const p of e.points) { mnx = Math.min(mnx, p.x); mny = Math.min(mny, p.y); mxx = Math.max(mxx, p.x); mxy = Math.max(mxy, p.y); }
+        return { min: { x: mnx, y: mny }, max: { x: mxx, y: mxy } };
+      }
+      case 'wall': {
+        let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+        const t = (e.thickness || 0.5) / 2;
+        for (const p of e.points) { mnx = Math.min(mnx, p.x - t); mny = Math.min(mny, p.y - t); mxx = Math.max(mxx, p.x + t); mxy = Math.max(mxy, p.y + t); }
+        return { min: { x: mnx, y: mny }, max: { x: mxx, y: mxy } };
+      }
+      case 'door': {
+        const r = e.width;
+        return { min: { x: e.x - r, y: e.y - r }, max: { x: e.x + r, y: e.y + r } };
+      }
+      case 'window': {
+        const dx = Math.cos(e.wallAngle) * e.width, dy = Math.sin(e.wallAngle) * e.width;
+        const t = (e.thickness || 0.5) / 2;
+        const xs = [e.x, e.x + dx], ys = [e.y, e.y + dy];
+        return { min: { x: Math.min(...xs) - t, y: Math.min(...ys) - t }, max: { x: Math.max(...xs) + t, y: Math.max(...ys) + t } };
+      }
+      case 'room': {
+        let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+        for (const p of e.boundary) { mnx = Math.min(mnx, p.x); mny = Math.min(mny, p.y); mxx = Math.max(mxx, p.x); mxy = Math.max(mxy, p.y); }
+        return { min: { x: mnx, y: mny }, max: { x: mxx, y: mxy } };
+      }
+    }
+  },
+
+  // Snap points an entity provides
+  snapPoints(e) {
+    const out = [];
+    switch (e.type) {
+      case 'line':
+        out.push({ type: 'endpoint', x: e.x1, y: e.y1 });
+        out.push({ type: 'endpoint', x: e.x2, y: e.y2 });
+        out.push({ type: 'midpoint', x: (e.x1 + e.x2) / 2, y: (e.y1 + e.y2) / 2 });
+        break;
+      case 'polyline':
+        for (let i = 0; i < e.points.length; i++) {
+          out.push({ type: 'endpoint', x: e.points[i].x, y: e.points[i].y });
+          const next = e.points[i + 1] || (e.closed ? e.points[0] : null);
+          if (next) out.push({ type: 'midpoint', x: (e.points[i].x + next.x) / 2, y: (e.points[i].y + next.y) / 2 });
+        }
+        break;
+      case 'circle':
+        out.push({ type: 'center', x: e.cx, y: e.cy });
+        out.push({ type: 'quadrant', x: e.cx + e.r, y: e.cy });
+        out.push({ type: 'quadrant', x: e.cx - e.r, y: e.cy });
+        out.push({ type: 'quadrant', x: e.cx, y: e.cy + e.r });
+        out.push({ type: 'quadrant', x: e.cx, y: e.cy - e.r });
+        break;
+      case 'arc':
+        out.push({ type: 'center', x: e.cx, y: e.cy });
+        out.push({ type: 'endpoint', x: e.cx + e.r * Math.cos(e.startAngle), y: e.cy + e.r * Math.sin(e.startAngle) });
+        out.push({ type: 'endpoint', x: e.cx + e.r * Math.cos(e.endAngle), y: e.cy + e.r * Math.sin(e.endAngle) });
+        const midA = (e.startAngle + e.endAngle) / 2;
+        out.push({ type: 'midpoint', x: e.cx + e.r * Math.cos(midA), y: e.cy + e.r * Math.sin(midA) });
+        break;
+      case 'ellipse':
+        out.push({ type: 'center', x: e.cx, y: e.cy });
+        break;
+      case 'text': out.push({ type: 'endpoint', x: e.x, y: e.y }); break;
+      case 'dimension':
+        out.push({ type: 'endpoint', x: e.p1.x, y: e.p1.y });
+        out.push({ type: 'endpoint', x: e.p2.x, y: e.p2.y });
+        break;
+      case 'hatch':
+        for (const p of e.points) out.push({ type: 'endpoint', x: p.x, y: p.y });
+        break;
+      case 'wall':
+        for (let i = 0; i < e.points.length; i++) {
+          out.push({ type: 'endpoint', x: e.points[i].x, y: e.points[i].y });
+          if (i < e.points.length - 1) {
+            out.push({ type: 'midpoint', x: (e.points[i].x + e.points[i + 1].x) / 2, y: (e.points[i].y + e.points[i + 1].y) / 2 });
+          }
+        }
+        break;
+      case 'door': {
+        out.push({ type: 'endpoint', x: e.x, y: e.y });
+        const ex = e.x + Math.cos(e.wallAngle) * e.width;
+        const ey = e.y + Math.sin(e.wallAngle) * e.width;
+        out.push({ type: 'endpoint', x: ex, y: ey });
+        out.push({ type: 'midpoint', x: (e.x + ex) / 2, y: (e.y + ey) / 2 });
+        break;
+      }
+      case 'window': {
+        const ex = e.x + Math.cos(e.wallAngle) * e.width;
+        const ey = e.y + Math.sin(e.wallAngle) * e.width;
+        out.push({ type: 'endpoint', x: e.x, y: e.y });
+        out.push({ type: 'endpoint', x: ex, y: ey });
+        out.push({ type: 'midpoint', x: (e.x + ex) / 2, y: (e.y + ey) / 2 });
+        break;
+      }
+      case 'room':
+        for (const p of e.boundary) out.push({ type: 'endpoint', x: p.x, y: p.y });
+        if (e.labelPos) out.push({ type: 'center', x: e.labelPos.x, y: e.labelPos.y });
+        break;
+    }
+    return out;
+  },
+
+  // returns nearest point on entity (for nearest snap and perpendicular checks) or null
+  nearestPoint(e, p) {
+    switch (e.type) {
+      case 'line': return G.closestOnSegment(p, { x: e.x1, y: e.y1 }, { x: e.x2, y: e.y2 });
+      case 'polyline': {
+        let best = null, bd = Infinity;
+        for (let i = 0; i < e.points.length - 1; i++) {
+          const c = G.closestOnSegment(p, e.points[i], e.points[i + 1]);
+          const d = G.dist(p, c);
+          if (d < bd) { bd = d; best = c; }
+        }
+        if (e.closed && e.points.length > 1) {
+          const c = G.closestOnSegment(p, e.points[e.points.length - 1], e.points[0]);
+          const d = G.dist(p, c);
+          if (d < bd) best = c;
+        }
+        return best;
+      }
+      case 'circle': {
+        const ang = G.angle({ x: e.cx, y: e.cy }, p);
+        return { x: e.cx + e.r * Math.cos(ang), y: e.cy + e.r * Math.sin(ang) };
+      }
+      case 'arc': {
+        const ang = G.angle({ x: e.cx, y: e.cy }, p);
+        if (G.angleInArc(ang, e.startAngle, e.endAngle)) {
+          return { x: e.cx + e.r * Math.cos(ang), y: e.cy + e.r * Math.sin(ang) };
+        } else {
+          const e1 = { x: e.cx + e.r * Math.cos(e.startAngle), y: e.cy + e.r * Math.sin(e.startAngle) };
+          const e2 = { x: e.cx + e.r * Math.cos(e.endAngle), y: e.cy + e.r * Math.sin(e.endAngle) };
+          return G.dist(p, e1) < G.dist(p, e2) ? e1 : e2;
+        }
+      }
+      case 'wall': {
+        let best = null, bd = Infinity;
+        for (let i = 0; i < e.points.length - 1; i++) {
+          const c = G.closestOnSegment(p, e.points[i], e.points[i + 1]);
+          const d = G.dist(p, c);
+          if (d < bd) { bd = d; best = c; }
+        }
+        return best;
+      }
+      case 'door': {
+        const ex = e.x + Math.cos(e.wallAngle) * e.width;
+        const ey = e.y + Math.sin(e.wallAngle) * e.width;
+        return G.closestOnSegment(p, { x: e.x, y: e.y }, { x: ex, y: ey });
+      }
+      case 'window': {
+        const ex = e.x + Math.cos(e.wallAngle) * e.width;
+        const ey = e.y + Math.sin(e.wallAngle) * e.width;
+        return G.closestOnSegment(p, { x: e.x, y: e.y }, { x: ex, y: ey });
+      }
+      case 'room': {
+        let best = null, bd = Infinity;
+        for (let i = 0; i < e.boundary.length; i++) {
+          const a = e.boundary[i], b = e.boundary[(i + 1) % e.boundary.length];
+          const c = G.closestOnSegment(p, a, b);
+          const d = G.dist(p, c);
+          if (d < bd) { bd = d; best = c; }
+        }
+        return best;
+      }
+      default: return null;
+    }
+  },
+
+  // hit test - returns true if p is within tolerance of entity
+  hitTest(e, p, tol) {
+    const np = Ent.nearestPoint(e, p);
+    if (np && G.dist(np, p) <= tol) return true;
+    if (e.type === 'text') {
+      const w = e.text.length * e.height * 0.6, h = e.height;
+      return p.x >= e.x - tol && p.x <= e.x + w + tol && p.y >= e.y - tol && p.y <= e.y + h + tol;
+    }
+    if (e.type === 'dimension') {
+      // hit on dim line
+      const offsetVec = computeDimLineEnds(e);
+      const np2 = G.closestOnSegment(p, offsetVec.a, offsetVec.b);
+      return G.dist(np2, p) <= tol;
+    }
+    if (e.type === 'hatch') {
+      return G.pointInPoly(p, e.points);
+    }
+    if (e.type === 'room') {
+      // hit on label area or anywhere inside
+      if (e.labelPos && G.dist(e.labelPos, p) <= tol * 4) return true;
+      return G.pointInPoly(p, e.boundary);
+    }
+    return false;
+  },
+
+  // returns true if entity is fully inside box (for window selection)
+  insideBox(e, box) {
+    const bb = Ent.bbox(e);
+    return bb.min.x >= box.min.x && bb.min.y >= box.min.y && bb.max.x <= box.max.x && bb.max.y <= box.max.y;
+  },
+  // returns true if entity intersects box (for crossing selection)
+  crossesBox(e, box) {
+    const bb = Ent.bbox(e);
+    if (bb.max.x < box.min.x || bb.min.x > box.max.x || bb.max.y < box.min.y || bb.min.y > box.max.y) return false;
+    return true;
+  },
+
+  // apply transformation
+  transform(e, fn) {
+    switch (e.type) {
+      case 'line': {
+        const a = fn({ x: e.x1, y: e.y1 }), b = fn({ x: e.x2, y: e.y2 });
+        e.x1 = a.x; e.y1 = a.y; e.x2 = b.x; e.y2 = b.y; break;
+      }
+      case 'polyline': e.points = e.points.map(fn); break;
+      case 'circle': {
+        const c = fn({ x: e.cx, y: e.cy });
+        e.cx = c.x; e.cy = c.y; break;
+      }
+      case 'arc': {
+        const c = fn({ x: e.cx, y: e.cy });
+        e.cx = c.x; e.cy = c.y;
+        // angle changes only with rotation; let caller pass adjusted entity
+        break;
+      }
+      case 'ellipse': {
+        const c = fn({ x: e.cx, y: e.cy });
+        e.cx = c.x; e.cy = c.y; break;
+      }
+      case 'text': {
+        const p = fn({ x: e.x, y: e.y });
+        e.x = p.x; e.y = p.y; break;
+      }
+      case 'dimension': {
+        e.p1 = fn(e.p1); e.p2 = fn(e.p2); e.dimLinePt = fn(e.dimLinePt); break;
+      }
+      case 'hatch': e.points = e.points.map(fn); break;
+      case 'wall': e.points = e.points.map(fn); break;
+      case 'door':
+      case 'window': {
+        const a = fn({ x: e.x, y: e.y });
+        const ex = e.x + Math.cos(e.wallAngle) * e.width;
+        const ey = e.y + Math.sin(e.wallAngle) * e.width;
+        const b = fn({ x: ex, y: ey });
+        e.x = a.x; e.y = a.y;
+        e.wallAngle = G.angle(a, b);
+        e.width = G.dist(a, b);
+        break;
+      }
+      case 'room':
+        e.boundary = e.boundary.map(fn);
+        if (e.labelPos) e.labelPos = fn(e.labelPos);
+        break;
+    }
+  },
+};
+
+function computeDimLineEnds(d) {
+  // compute offset endpoints for dim line based on dimLinePt
+  const dx = d.p2.x - d.p1.x, dy = d.p2.y - d.p1.y;
+  if (d.dimType === 'aligned' || d.dimType === 'linear') {
+    const lineLen = Math.hypot(dx, dy) || 1;
+    let nx, ny;
+    if (d.dimType === 'aligned') {
+      nx = -dy / lineLen; ny = dx / lineLen;
+    } else {
+      // linear: project dimLinePt onto perpendicular axes
+      // pick whichever is more horizontal vs vertical
+      if (Math.abs(dx) >= Math.abs(dy)) { nx = 0; ny = 1; } else { nx = 1; ny = 0; }
+    }
+    // scalar offset
+    const dotO = (d.dimLinePt.x - d.p1.x) * nx + (d.dimLinePt.y - d.p1.y) * ny;
+    if (d.dimType === 'aligned') {
+      const a = { x: d.p1.x + nx * dotO, y: d.p1.y + ny * dotO };
+      const b = { x: d.p2.x + nx * dotO, y: d.p2.y + ny * dotO };
+      return { a, b };
+    } else {
+      // for linear, the dimension line is parallel to chosen axis
+      // move both endpoints to dim line position along chosen axis
+      const a = { x: nx === 0 ? d.p1.x : d.dimLinePt.x, y: ny === 0 ? d.p1.y : d.dimLinePt.y };
+      const b = { x: nx === 0 ? d.p2.x : d.dimLinePt.x, y: ny === 0 ? d.p2.y : d.dimLinePt.y };
+      return { a, b };
+    }
+  }
+  return { a: d.p1, b: d.p2 };
+}
+
+/* ============================================================
+   HISTORY
+   ============================================================ */
+function snapshot() {
+  return JSON.stringify({
+    entities: [...state.entities.entries()],
+    layers: [...state.layers.entries()],
+    activeLayerId: state.activeLayerId,
+    nextId,
+  });
+}
+function restore(snap) {
+  const data = JSON.parse(snap);
+  state.entities = new Map(data.entities);
+  state.layers = new Map(data.layers);
+  state.activeLayerId = data.activeLayerId;
+  nextId = data.nextId;
+  state.selection.clear();
+  refreshLayersUI();
+  refreshProperties();
+  updateStatus();
+}
+function pushHistory() {
+  state.history = state.history.slice(0, state.historyIndex + 1);
+  state.history.push(snapshot());
+  if (state.history.length > 100) state.history.shift();
+  state.historyIndex = state.history.length - 1;
+  state.isDirty = true;
+  updateStatus();
+}
+function undo() {
+  if (state.historyIndex <= 0) { logMsg('Nothing to undo', 'info'); return; }
+  state.historyIndex--;
+  restore(state.history[state.historyIndex]);
+  logMsg('Undo', 'info');
+  render();
+}
+function redo() {
+  if (state.historyIndex >= state.history.length - 1) { logMsg('Nothing to redo', 'info'); return; }
+  state.historyIndex++;
+  restore(state.history[state.historyIndex]);
+  logMsg('Redo', 'info');
+  render();
+}
+
+/* ============================================================
+   ADD / DELETE / MUTATE
+   ============================================================ */
+function addEntity(e) {
+  if (!e.id) e.id = newId();
+  if (!e.layer) e.layer = state.activeLayerId;
+  state.entities.set(e.id, e);
+  return e;
+}
+function deleteEntities(ids) {
+  for (const id of ids) state.entities.delete(id);
+  for (const id of ids) state.selection.delete(id);
+}
+
+/* ============================================================
+   SNAP ENGINE
+   ============================================================ */
+const snapPriority = { endpoint: 1, midpoint: 2, intersection: 3, center: 4, quadrant: 5, perpendicular: 6, grid: 7, nearest: 8 };
+
+function computeTracking(world) {
+  if (!state.snapEnabled) { state.cursor.tracking = null; return; }
+  const tolPx = 6;
+  const tolWorld = pxToWorld(tolPx);
+  const horiz = [], vert = [];
+  let count = 0;
+  for (const e of state.entities.values()) {
+    const layer = state.layers.get(e.layer);
+    if (!layer || !layer.visible) continue;
+    for (const sp of Ent.snapPoints(e)) {
+      if (sp.type !== 'endpoint' && sp.type !== 'center' && sp.type !== 'midpoint' && sp.type !== 'quadrant') continue;
+      if (Math.abs(sp.y - world.y) < tolWorld) horiz.push(sp);
+      if (Math.abs(sp.x - world.x) < tolWorld) vert.push(sp);
+      if (++count > 800) break;
+    }
+    if (count > 800) break;
+  }
+  state.cursor.tracking = { horiz, vert };
+}
+
+function drawTrackingGuides() {
+  const t = state.cursor.tracking;
+  if (!t) return;
+  const cur = state.cursor.snap || state.cursor.world;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(61,220,132,0.45)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.fillStyle = '#3ddc84';
+  for (const p of t.horiz) {
+    const a = w2s({ x: p.x, y: p.y });
+    const b = w2s({ x: cur.x, y: p.y });
+    ctx.beginPath();
+    ctx.moveTo(Math.round(a.x) + 0.5, Math.round(a.y) + 0.5);
+    ctx.lineTo(Math.round(b.x) + 0.5, Math.round(b.y) + 0.5);
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(a.x, a.y, 2, 0, Math.PI * 2); ctx.fill();
+  }
+  for (const p of t.vert) {
+    const a = w2s({ x: p.x, y: p.y });
+    const b = w2s({ x: p.x, y: cur.y });
+    ctx.beginPath();
+    ctx.moveTo(Math.round(a.x) + 0.5, Math.round(a.y) + 0.5);
+    ctx.lineTo(Math.round(b.x) + 0.5, Math.round(b.y) + 0.5);
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(a.x, a.y, 2, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function findSnap(world) {
+  if (!state.snapEnabled) return null;
+  const tolPx = state.snapDistance;
+  const tolWorld = pxToWorld(tolPx);
+  let best = null, bestPriority = 999, bestDist = Infinity;
+
+  // entity-based snaps
+  for (const e of state.entities.values()) {
+    const layer = state.layers.get(e.layer);
+    if (!layer || !layer.visible) continue;
+    for (const sp of Ent.snapPoints(e)) {
+      if (!state.snapTypes[sp.type]) continue;
+      const d = G.dist(world, sp);
+      if (d <= tolWorld) {
+        const pr = snapPriority[sp.type];
+        if (pr < bestPriority || (pr === bestPriority && d < bestDist)) {
+          best = sp; bestPriority = pr; bestDist = d;
+        }
+      }
+    }
+  }
+
+  // intersections (pairwise) - only check entities near cursor
+  if (state.snapTypes.intersection) {
+    const near = [];
+    for (const e of state.entities.values()) {
+      const layer = state.layers.get(e.layer);
+      if (!layer || !layer.visible) continue;
+      const bb = Ent.bbox(e);
+      if (world.x >= bb.min.x - tolWorld && world.x <= bb.max.x + tolWorld &&
+          world.y >= bb.min.y - tolWorld && world.y <= bb.max.y + tolWorld) {
+        near.push(e);
+      }
+    }
+    for (let i = 0; i < near.length; i++) {
+      for (let j = i + 1; j < near.length; j++) {
+        const pts = entityIntersect(near[i], near[j]);
+        for (const p of pts) {
+          const d = G.dist(world, p);
+          if (d <= tolWorld) {
+            const pr = snapPriority.intersection;
+            if (pr < bestPriority || (pr === bestPriority && d < bestDist)) {
+              best = { type: 'intersection', x: p.x, y: p.y };
+              bestPriority = pr; bestDist = d;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // nearest on entity
+  if (state.snapTypes.nearest && !best) {
+    for (const e of state.entities.values()) {
+      const layer = state.layers.get(e.layer);
+      if (!layer || !layer.visible) continue;
+      const np = Ent.nearestPoint(e, world);
+      if (np) {
+        const d = G.dist(world, np);
+        if (d <= tolWorld && d < bestDist) {
+          best = { type: 'nearest', x: np.x, y: np.y };
+          bestPriority = snapPriority.nearest;
+          bestDist = d;
+        }
+      }
+    }
+  }
+
+  // alignment tracking (X+Y intersection)
+  if (!best && state.cursor.tracking) {
+    const t = state.cursor.tracking;
+    if (t.horiz.length > 0 && t.vert.length > 0) {
+      let minD = Infinity, bp = null;
+      for (const h of t.horiz) for (const v of t.vert) {
+        const cand = { x: v.x, y: h.y };
+        const d = G.dist(world, cand);
+        if (d < minD) { minD = d; bp = cand; }
+      }
+      if (bp && minD < tolWorld * 1.4) best = { type: 'extension', x: bp.x, y: bp.y };
+    }
+  }
+
+  // grid snap (lowest priority)
+  if (state.snapTypes.grid && state.grid.enabled && !best) {
+    const gx = Math.round(world.x / state.grid.size) * state.grid.size;
+    const gy = Math.round(world.y / state.grid.size) * state.grid.size;
+    const gp = { x: gx, y: gy };
+    if (G.dist(world, gp) <= tolWorld) {
+      best = { type: 'grid', x: gx, y: gy };
+    }
+  }
+
+  return best;
+}
+
+function entityIntersect(a, b) {
+  // return array of intersection points
+  const out = [];
+  const segments = (e) => {
+    if (e.type === 'line') return [[{ x: e.x1, y: e.y1 }, { x: e.x2, y: e.y2 }]];
+    if (e.type === 'polyline') {
+      const segs = [];
+      for (let i = 0; i < e.points.length - 1; i++) segs.push([e.points[i], e.points[i + 1]]);
+      if (e.closed && e.points.length > 1) segs.push([e.points[e.points.length - 1], e.points[0]]);
+      return segs;
+    }
+    return null;
+  };
+  const sa = segments(a), sb = segments(b);
+  if (sa && sb) {
+    for (const [p1, p2] of sa) for (const [p3, p4] of sb) {
+      const ip = G.segSegIntersect(p1, p2, p3, p4);
+      if (ip) out.push({ x: ip.x, y: ip.y });
+    }
+  } else if (sa && b.type === 'circle') {
+    for (const [p1, p2] of sa) for (const ip of G.lineCircleIntersect(p1, p2, { x: b.cx, y: b.cy }, b.r)) out.push(ip);
+  } else if (sb && a.type === 'circle') {
+    for (const [p1, p2] of sb) for (const ip of G.lineCircleIntersect(p1, p2, { x: a.cx, y: a.cy }, a.r)) out.push(ip);
+  } else if (a.type === 'circle' && b.type === 'circle') {
+    const d = G.dist({ x: a.cx, y: a.cy }, { x: b.cx, y: b.cy });
+    if (d <= a.r + b.r && d >= Math.abs(a.r - b.r) && d > 1e-9) {
+      const aa = (a.r * a.r - b.r * b.r + d * d) / (2 * d);
+      const h = Math.sqrt(Math.max(0, a.r * a.r - aa * aa));
+      const px = a.cx + aa * (b.cx - a.cx) / d;
+      const py = a.cy + aa * (b.cy - a.cy) / d;
+      out.push({ x: px + h * (b.cy - a.cy) / d, y: py - h * (b.cx - a.cx) / d });
+      if (h > 1e-9) out.push({ x: px - h * (b.cy - a.cy) / d, y: py + h * (b.cx - a.cx) / d });
+    }
+  }
+  return out;
+}
+
+/* ============================================================
+   ORTHO / POLAR
+   ============================================================ */
+function applyConstraints(from, to) {
+  if (state.ortho && from) {
+    const dx = to.x - from.x, dy = to.y - from.y;
+    if (Math.abs(dx) >= Math.abs(dy)) return { x: to.x, y: from.y };
+    return { x: from.x, y: to.y };
+  }
+  if (state.polar && from) {
+    return G.snapAngle(from, to, Math.PI / 4);
+  }
+  return to;
+}
+
+/* ============================================================
+   RENDERER
+   ============================================================ */
+let DPR = 1;
+function resize() {
+  const wrap = document.getElementById('canvas-wrap');
+  DPR = window.devicePixelRatio || 1;
+  canvas.width = Math.round(wrap.clientWidth * DPR);
+  canvas.height = Math.round(wrap.clientHeight * DPR);
+  canvas.style.width = wrap.clientWidth + 'px';
+  canvas.style.height = wrap.clientHeight + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  render();
+}
+const CW = () => canvas.clientWidth;
+const CH = () => canvas.clientHeight;
+
+function themeColors() {
+  const dark = document.body.classList.contains('theme-dark');
+  return {
+    bg: dark ? '#16161a' : '#fafafa',
+    gridMinor: dark ? '#222' : '#ececef',
+    gridMajor: dark ? '#2e2e2e' : '#d8d8dc',
+    axisX: dark ? '#5a2a2a' : '#f3d6d6',
+    axisY: dark ? '#2a5a2a' : '#d6ebd6',
+    crosshair: dark ? 'rgba(200,200,210,0.16)' : 'rgba(20,20,30,0.10)',
+    label: dark ? '#ccc' : '#1a1a1f',
+    preview: dark ? '#888' : '#9a9aa6',
+    dimBg: dark ? '#16161a' : '#fafafa',
+  };
+}
+
+function render() {
+  if (!ctx) return;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const T = themeColors();
+  ctx.fillStyle = T.bg;
+  ctx.fillRect(0, 0, CW(), CH());
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (state.grid.enabled) drawGrid();
+  drawAxes();
+
+  // hover highlight (drawn behind selection)
+  if (state.cursor.hoverId && !state.selection.has(state.cursor.hoverId)) {
+    const he = state.entities.get(state.cursor.hoverId);
+    if (he) drawEntity(he, false, true);
+  }
+
+  // entities — rooms first (so floor fill is under walls), then dimensions/hatch, then everything else
+  const zOrder = { room: 0, hatch: 1, wall: 5, line: 5, polyline: 5, circle: 5, arc: 5, ellipse: 5, door: 6, window: 6, dimension: 7, text: 8 };
+  const sortedEnts = [...state.entities.values()].sort((a, b) => (zOrder[a.type] || 5) - (zOrder[b.type] || 5));
+  for (const e of sortedEnts) drawEntity(e);
+
+  // selection highlights
+  for (const id of state.selection) {
+    const e = state.entities.get(id);
+    if (e) drawEntity(e, true);
+  }
+
+  // tracking guides (dashed extension lines from aligned endpoints)
+  drawTrackingGuides();
+
+  // active tool preview
+  if (state.activeTool && state.activeTool.drawPreview) state.activeTool.drawPreview(ctx);
+
+  // selection box preview
+  if (selectBox.active) drawSelectBox();
+
+  // snap indicator
+  if (state.cursor.snap) drawSnapIndicator(state.cursor.snap);
+
+  // crosshair
+  drawCrosshair();
+}
+
+function drawGrid() {
+  const T = themeColors();
+  const minor = state.grid.size;
+  const major = minor * state.grid.majorEvery;
+  const tl = s2w({ x: 0, y: 0 });
+  const br = s2w({ x: CW(), y: CH() });
+  const minX = Math.floor(tl.x / major) * major, maxX = Math.ceil(br.x / major) * major;
+  const minY = Math.floor(br.y / major) * major, maxY = Math.ceil(tl.y / major) * major;
+  if ((maxX - minX) / minor > 2000) return;
+
+  ctx.lineWidth = 1;
+  if (state.viewport.scale * minor > 5) {
+    ctx.strokeStyle = T.gridMinor;
+    ctx.beginPath();
+    for (let x = minX; x <= maxX; x += minor) {
+      const sx = Math.round(w2s({ x, y: 0 }).x) + 0.5;
+      ctx.moveTo(sx, 0); ctx.lineTo(sx, CH());
+    }
+    for (let y = minY; y <= maxY; y += minor) {
+      const sy = Math.round(w2s({ x: 0, y }).y) + 0.5;
+      ctx.moveTo(0, sy); ctx.lineTo(CW(), sy);
+    }
+    ctx.stroke();
+  }
+  ctx.strokeStyle = T.gridMajor;
+  ctx.beginPath();
+  for (let x = minX; x <= maxX; x += major) {
+    const sx = Math.round(w2s({ x, y: 0 }).x) + 0.5;
+    ctx.moveTo(sx, 0); ctx.lineTo(sx, CH());
+  }
+  for (let y = minY; y <= maxY; y += major) {
+    const sy = Math.round(w2s({ x: 0, y }).y) + 0.5;
+    ctx.moveTo(0, sy); ctx.lineTo(CW(), sy);
+  }
+  ctx.stroke();
+}
+
+function drawAxes() {
+  const T = themeColors();
+  const o = w2s({ x: 0, y: 0 });
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = T.axisX;
+  const oy = Math.round(o.y) + 0.5;
+  ctx.beginPath(); ctx.moveTo(0, oy); ctx.lineTo(CW(), oy); ctx.stroke();
+  ctx.strokeStyle = T.axisY;
+  const ox = Math.round(o.x) + 0.5;
+  ctx.beginPath(); ctx.moveTo(ox, 0); ctx.lineTo(ox, CH()); ctx.stroke();
+}
+
+function drawCrosshair() {
+  const T = themeColors();
+  const c = state.cursor.snap ? w2s(state.cursor.snap) : state.cursor.screen;
+  if (!c) return;
+  ctx.strokeStyle = T.crosshair; ctx.lineWidth = 1;
+  ctx.setLineDash([3, 5]);
+  ctx.beginPath();
+  const cx = Math.round(c.x) + 0.5, cy = Math.round(c.y) + 0.5;
+  ctx.moveTo(0, cy); ctx.lineTo(CW(), cy);
+  ctx.moveTo(cx, 0); ctx.lineTo(cx, CH());
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawSnapIndicator(snap) {
+  const s = w2s(snap);
+  const ACC = '#3ddc84';
+  ctx.strokeStyle = ACC; ctx.lineWidth = 1.5;
+  ctx.fillStyle = 'rgba(61,220,132,0.14)';
+  const sz = 5;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  switch (snap.type) {
+    case 'endpoint':
+      ctx.fillRect(s.x - sz, s.y - sz, sz * 2, sz * 2);
+      ctx.strokeRect(s.x - sz, s.y - sz, sz * 2, sz * 2);
+      break;
+    case 'midpoint':
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y - sz); ctx.lineTo(s.x + sz, s.y + sz); ctx.lineTo(s.x - sz, s.y + sz); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      break;
+    case 'center':
+      ctx.beginPath(); ctx.arc(s.x, s.y, sz, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(s.x, s.y, 1, 0, Math.PI * 2); ctx.fillStyle = ACC; ctx.fill();
+      break;
+    case 'quadrant':
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y - sz); ctx.lineTo(s.x + sz, s.y); ctx.lineTo(s.x, s.y + sz); ctx.lineTo(s.x - sz, s.y); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      break;
+    case 'intersection':
+      ctx.beginPath();
+      ctx.moveTo(s.x - sz, s.y - sz); ctx.lineTo(s.x + sz, s.y + sz);
+      ctx.moveTo(s.x - sz, s.y + sz); ctx.lineTo(s.x + sz, s.y - sz);
+      ctx.stroke();
+      break;
+    case 'perpendicular':
+      ctx.strokeRect(s.x - sz, s.y - sz, sz * 2, sz * 2);
+      ctx.beginPath();
+      ctx.moveTo(s.x - sz, s.y); ctx.lineTo(s.x + sz, s.y);
+      ctx.moveTo(s.x, s.y - sz); ctx.lineTo(s.x, s.y);
+      ctx.stroke();
+      break;
+    case 'nearest':
+      ctx.beginPath();
+      ctx.moveTo(s.x - sz, s.y - sz); ctx.lineTo(s.x + sz, s.y - sz); ctx.lineTo(s.x - sz, s.y + sz); ctx.lineTo(s.x + sz, s.y + sz); ctx.closePath();
+      ctx.stroke();
+      break;
+    case 'grid':
+      ctx.beginPath(); ctx.arc(s.x, s.y, 2.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      break;
+    case 'extension':
+    case 'alignH':
+    case 'alignV':
+      ctx.beginPath();
+      ctx.moveTo(s.x - sz, s.y); ctx.lineTo(s.x + sz, s.y);
+      ctx.moveTo(s.x, s.y - sz); ctx.lineTo(s.x, s.y + sz);
+      ctx.stroke();
+      break;
+  }
+  ctx.fillStyle = ACC;
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.fillText(snap.type, s.x + 9, s.y - 7);
+}
+
+function drawSelectBox() {
+  const a = w2s(selectBox.start);
+  const b = w2s(selectBox.end);
+  const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+  const crossing = b.x < a.x;
+  ctx.fillStyle = crossing ? 'rgba(0,200,0,0.1)' : 'rgba(0,120,255,0.1)';
+  ctx.strokeStyle = crossing ? '#00cc00' : '#3399ff';
+  ctx.lineWidth = 1;
+  if (crossing) ctx.setLineDash([4, 4]);
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeRect(x, y, w, h);
+  ctx.setLineDash([]);
+}
+
+function drawEntity(e, highlight = false, hover = false) {
+  const layer = state.layers.get(e.layer);
+  if (!layer || !layer.visible) return;
+  let color = layer.color || '#dddddd';
+  if (highlight) color = '#4aa3ff';
+  else if (hover) color = '#a5d4ff';
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  const baseLW = layer.lineWeight || 1;
+  ctx.lineWidth = highlight ? Math.max(baseLW + 1, 2) : (hover ? baseLW + 0.5 : baseLW);
+
+  switch (e.type) {
+    case 'line': {
+      const a = w2s({ x: e.x1, y: e.y1 }), b = w2s({ x: e.x2, y: e.y2 });
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      break;
+    }
+    case 'polyline': {
+      ctx.beginPath();
+      for (let i = 0; i < e.points.length; i++) {
+        const p = w2s(e.points[i]);
+        if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+      }
+      if (e.closed) ctx.closePath();
+      ctx.stroke();
+      break;
+    }
+    case 'circle': {
+      const c = w2s({ x: e.cx, y: e.cy });
+      ctx.beginPath(); ctx.arc(c.x, c.y, e.r * state.viewport.scale, 0, Math.PI * 2); ctx.stroke();
+      break;
+    }
+    case 'arc': {
+      const c = w2s({ x: e.cx, y: e.cy });
+      // canvas Y is flipped; draw with negated angles and counterclockwise=true
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, e.r * state.viewport.scale, -e.endAngle, -e.startAngle, false);
+      ctx.stroke();
+      break;
+    }
+    case 'ellipse': {
+      const c = w2s({ x: e.cx, y: e.cy });
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(-(e.rotation || 0));
+      ctx.beginPath();
+      ctx.ellipse(0, 0, e.rx * state.viewport.scale, e.ry * state.viewport.scale, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+      break;
+    }
+    case 'text': {
+      const p = w2s({ x: e.x, y: e.y + e.height });
+      const px = e.height * state.viewport.scale;
+      ctx.font = px + 'px sans-serif';
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      if (e.rotation) ctx.rotate(-e.rotation);
+      ctx.fillText(e.text, 0, 0);
+      ctx.restore();
+      break;
+    }
+    case 'dimension': drawDimension(e, color); break;
+    case 'hatch': drawHatch(e, color); break;
+    case 'wall': drawWall(e, color, highlight, hover); break;
+    case 'door': drawDoor(e, color); break;
+    case 'window': drawWindow(e, color); break;
+    case 'room': drawRoom(e, color, highlight, hover); break;
+  }
+
+  if (highlight) {
+    // draw grips
+    const grips = Ent.snapPoints(e).filter(s => s.type === 'endpoint' || s.type === 'center' || s.type === 'midpoint');
+    ctx.fillStyle = '#3399ff';
+    for (const g of grips) {
+      const sp = w2s(g);
+      ctx.fillRect(sp.x - 3, sp.y - 3, 6, 6);
+    }
+  }
+}
+
+function drawDimension(d, color) {
+  const ends = computeDimLineEnds(d);
+  const a = w2s(d.p1), b = w2s(d.p2);
+  const da = w2s(ends.a), db = w2s(ends.b);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  // extension lines
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y); ctx.lineTo(da.x, da.y);
+  ctx.moveTo(b.x, b.y); ctx.lineTo(db.x, db.y);
+  // dim line
+  ctx.moveTo(da.x, da.y); ctx.lineTo(db.x, db.y);
+  ctx.stroke();
+  // arrows
+  const ang = Math.atan2(db.y - da.y, db.x - da.x);
+  drawArrowHead(da.x, da.y, ang);
+  drawArrowHead(db.x, db.y, ang + Math.PI);
+  // label
+  const dist = G.dist(d.p1, d.p2);
+  let labelDist = dist;
+  if (d.dimType === 'linear') {
+    labelDist = Math.hypot(ends.b.x - ends.a.x, ends.b.y - ends.a.y);
+  }
+  const label = formatLength(labelDist);
+  const mid = { x: (da.x + db.x) / 2, y: (da.y + db.y) / 2 };
+  ctx.fillStyle = color;
+  ctx.font = '12px sans-serif';
+  ctx.save();
+  ctx.translate(mid.x, mid.y);
+  let labAng = ang;
+  if (Math.abs(labAng) > Math.PI / 2) labAng += Math.PI;
+  ctx.rotate(labAng);
+  const tw = ctx.measureText(label).width;
+  ctx.fillStyle = themeColors().dimBg;
+  ctx.fillRect(-tw / 2 - 2, -7, tw + 4, 14);
+  ctx.fillStyle = color;
+  ctx.fillText(label, -tw / 2, 4);
+  ctx.restore();
+}
+function drawArrowHead(x, y, ang) {
+  const sz = 8;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x - sz * Math.cos(ang - 0.3), y - sz * Math.sin(ang - 0.3));
+  ctx.lineTo(x - sz * Math.cos(ang + 0.3), y - sz * Math.sin(ang + 0.3));
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawHatch(e, color) {
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i < e.points.length; i++) {
+    const p = w2s(e.points[i]);
+    if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+  }
+  ctx.closePath();
+  if (e.pattern === 'solid') {
+    ctx.fillStyle = color + '55';
+    ctx.fill();
+  } else {
+    // simple line pattern
+    ctx.clip();
+    const bb = Ent.bbox(e);
+    const space = e.spacing || 0.5;
+    const ang = e.angle || Math.PI / 4;
+    const dx = Math.cos(ang), dy = Math.sin(ang);
+    const minP = w2s(bb.min), maxP = w2s(bb.max);
+    const step = space * state.viewport.scale;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    const len = Math.hypot(CW(), CH());
+    for (let t = -len; t <= len; t += step) {
+      const cx = CW() / 2 + t * dy;
+      const cy = CH() / 2 - t * dx;
+      ctx.moveTo(cx - len * dx, cy + len * dy);
+      ctx.lineTo(cx + len * dx, cy - len * dy);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function computeWallEdges(pts, thickness) {
+  if (!pts || pts.length < 2) return null;
+  const t = thickness / 2;
+  const left = [], right = [];
+  for (let i = 0; i < pts.length; i++) {
+    if (i === 0) {
+      const dx = pts[1].x - pts[0].x, dy = pts[1].y - pts[0].y, l = Math.hypot(dx, dy) || 1;
+      const nx = -dy / l, ny = dx / l;
+      left.push({ x: pts[0].x + nx * t, y: pts[0].y + ny * t });
+      right.push({ x: pts[0].x - nx * t, y: pts[0].y - ny * t });
+    } else if (i === pts.length - 1) {
+      const dx = pts[i].x - pts[i - 1].x, dy = pts[i].y - pts[i - 1].y, l = Math.hypot(dx, dy) || 1;
+      const nx = -dy / l, ny = dx / l;
+      left.push({ x: pts[i].x + nx * t, y: pts[i].y + ny * t });
+      right.push({ x: pts[i].x - nx * t, y: pts[i].y - ny * t });
+    } else {
+      const dx1 = pts[i].x - pts[i - 1].x, dy1 = pts[i].y - pts[i - 1].y, l1 = Math.hypot(dx1, dy1) || 1;
+      const dx2 = pts[i + 1].x - pts[i].x, dy2 = pts[i + 1].y - pts[i].y, l2 = Math.hypot(dx2, dy2) || 1;
+      const n1x = -dy1 / l1, n1y = dx1 / l1;
+      const n2x = -dy2 / l2, n2y = dx2 / l2;
+      let mx = n1x + n2x, my = n1y + n2y;
+      const ml = Math.hypot(mx, my);
+      if (ml < 1e-6) {
+        left.push({ x: pts[i].x + n1x * t, y: pts[i].y + n1y * t });
+        right.push({ x: pts[i].x - n1x * t, y: pts[i].y - n1y * t });
+      } else {
+        mx /= ml; my /= ml;
+        const dot = mx * n1x + my * n1y;
+        const lenL = t / Math.max(0.2, dot);
+        left.push({ x: pts[i].x + mx * lenL, y: pts[i].y + my * lenL });
+        right.push({ x: pts[i].x - mx * lenL, y: pts[i].y - my * lenL });
+      }
+    }
+  }
+  return { left, right };
+}
+
+function drawWall(e, color, highlight, hover) {
+  const edges = computeWallEdges(e.points, e.thickness || 0.5);
+  if (!edges) return;
+  ctx.lineCap = 'butt'; ctx.lineJoin = 'miter'; ctx.miterLimit = 6;
+  // body fill - subtle for floor plan look
+  if (!highlight && !hover) {
+    ctx.fillStyle = color + '22';
+    ctx.beginPath();
+    for (let i = 0; i < edges.left.length; i++) {
+      const p = w2s(edges.left[i]);
+      if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    }
+    for (let i = edges.right.length - 1; i >= 0; i--) {
+      const p = w2s(edges.right[i]);
+      ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  // edges
+  ctx.strokeStyle = color;
+  ctx.lineWidth = highlight ? 2.5 : (hover ? 1.5 : 1);
+  for (const side of [edges.left, edges.right]) {
+    ctx.beginPath();
+    for (let i = 0; i < side.length; i++) {
+      const p = w2s(side[i]);
+      if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+  }
+  // end caps
+  ctx.beginPath();
+  const a0 = w2s(edges.left[0]), b0 = w2s(edges.right[0]);
+  ctx.moveTo(a0.x, a0.y); ctx.lineTo(b0.x, b0.y);
+  const an = w2s(edges.left[edges.left.length - 1]), bn = w2s(edges.right[edges.right.length - 1]);
+  ctx.moveTo(an.x, an.y); ctx.lineTo(bn.x, bn.y);
+  ctx.stroke();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+}
+
+function drawDoor(e, color) {
+  const c = w2s({ x: e.x, y: e.y });
+  const r = e.width * state.viewport.scale;
+  const wallAngScreen = -e.wallAngle;
+  const swing = e.swing || 1;
+  const openAng = (e.openAngle != null ? e.openAngle : Math.PI / 2);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  ctx.rotate(wallAngScreen);
+  // door panel
+  ctx.save();
+  ctx.rotate(-swing * openAng);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(r, 0);
+  ctx.stroke();
+  ctx.restore();
+  // swing arc
+  ctx.beginPath();
+  if (swing > 0) ctx.arc(0, 0, r, -openAng, 0, false);
+  else ctx.arc(0, 0, r, 0, openAng, false);
+  ctx.stroke();
+  // hinge marker
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function drawWindow(e, color) {
+  const a = w2s({ x: e.x, y: e.y });
+  const ex = e.x + Math.cos(e.wallAngle) * e.width;
+  const ey = e.y + Math.sin(e.wallAngle) * e.width;
+  const b = w2s({ x: ex, y: ey });
+  const t = (e.thickness || 0.5) / 2;
+  // perpendicular offset in world
+  const perp = { x: -Math.sin(e.wallAngle) * t, y: Math.cos(e.wallAngle) * t };
+  const aL = w2s({ x: e.x + perp.x, y: e.y + perp.y });
+  const aR = w2s({ x: e.x - perp.x, y: e.y - perp.y });
+  const bL = w2s({ x: ex + perp.x, y: ey + perp.y });
+  const bR = w2s({ x: ex - perp.x, y: ey - perp.y });
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  // outer frames
+  ctx.moveTo(aL.x, aL.y); ctx.lineTo(bL.x, bL.y);
+  ctx.moveTo(aR.x, aR.y); ctx.lineTo(bR.x, bR.y);
+  // glass center line
+  ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+  // end caps
+  ctx.moveTo(aL.x, aL.y); ctx.lineTo(aR.x, aR.y);
+  ctx.moveTo(bL.x, bL.y); ctx.lineTo(bR.x, bR.y);
+  ctx.stroke();
+}
+
+function formatLength(d) {
+  if (state.units === 'ft') {
+    const f = Math.floor(d);
+    const i = (d - f) * 12;
+    return `${f}'-${i.toFixed(2)}"`;
+  }
+  return d.toFixed(3) + ' ' + state.units;
+}
+
+/* ============================================================
+   SELECTION
+   ============================================================ */
+const selectBox = { active: false, start: null, end: null };
+
+function selectAt(world) {
+  const tol = pxToWorld(6);
+  // pick last (topmost) entity hit
+  const entries = [...state.entities.values()].reverse();
+  for (const e of entries) {
+    const layer = state.layers.get(e.layer);
+    if (!layer || !layer.visible || layer.locked) continue;
+    if (Ent.hitTest(e, world, tol)) return e.id;
+  }
+  return null;
+}
+
+function selectInBox(start, end) {
+  const crossing = end.x < start.x;
+  const box = {
+    min: { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y) },
+    max: { x: Math.max(start.x, end.x), y: Math.max(start.y, end.y) },
+  };
+  const out = [];
+  for (const e of state.entities.values()) {
+    const layer = state.layers.get(e.layer);
+    if (!layer || !layer.visible || layer.locked) continue;
+    if (crossing ? Ent.crossesBox(e, box) : Ent.insideBox(e, box)) out.push(e.id);
+  }
+  return out;
+}
+
+/* ============================================================
+   TOOLS
+   ============================================================ */
+const tools = {};
+let activeToolName = null;
+
+function setTool(name, opts = {}) {
+  if (state.activeTool && state.activeTool.onDeactivate) state.activeTool.onDeactivate();
+  if (!tools[name]) name = 'select';
+  activeToolName = name;
+  state.activeTool = Object.assign({}, tools[name]);
+  state.activeTool.opts = opts;
+  if (state.activeTool.onActivate) state.activeTool.onActivate(opts);
+  document.querySelectorAll('#toolbar button[data-tool]').forEach(b => {
+    b.classList.toggle('active', b.dataset.tool === name);
+  });
+  document.getElementById('status-tool').textContent = name.toUpperCase();
+  setPrompt(state.activeTool.prompt || 'Command:');
+  render();
+}
+
+function setPrompt(s) { document.getElementById('cmd-prompt').textContent = s; }
+
+/* ----- SELECT TOOL ----- */
+tools.select = {
+  prompt: 'Select objects:',
+  onActivate() { canvas.style.cursor = 'default'; },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const id = selectAt(world);
+    if (id) {
+      if (!ev.shiftKey) state.selection.clear();
+      if (state.selection.has(id) && ev.shiftKey) state.selection.delete(id);
+      else state.selection.add(id);
+      refreshProperties();
+    } else {
+      if (!ev.shiftKey) state.selection.clear();
+      selectBox.active = true;
+      selectBox.start = { ...world };
+      selectBox.end = { ...world };
+    }
+  },
+  onMouseMove(world) {
+    if (selectBox.active) selectBox.end = { ...world };
+  },
+  onMouseUp(world, screen, ev) {
+    if (selectBox.active) {
+      const ids = selectInBox(selectBox.start, selectBox.end);
+      for (const id of ids) state.selection.add(id);
+      selectBox.active = false;
+      refreshProperties();
+    }
+  },
+  onKeyDown(ev) {
+    if (ev.key === 'Delete' || ev.key === 'Backspace') {
+      if (state.selection.size > 0) {
+        const count = state.selection.size;
+        deleteEntities([...state.selection]);
+        pushHistory();
+        refreshProperties();
+        render();
+        logMsg('Deleted ' + count + ' object(s)', 'info');
+      }
+    }
+  },
+};
+
+/* ----- LINE TOOL ----- */
+tools.line = {
+  prompt: 'Specify first point:',
+  state: { points: [] },
+  onActivate() { this.state = { points: [] }; canvas.style.cursor = 'crosshair'; setPrompt('Specify first point:'); },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    let p = state.cursor.snap || world;
+    if (this.state.points.length > 0) p = applyConstraints(this.state.points[this.state.points.length - 1], p);
+    this.state.points.push(p);
+    if (this.state.points.length >= 2) {
+      const a = this.state.points[this.state.points.length - 2], b = this.state.points[this.state.points.length - 1];
+      addEntity({ type: 'line', x1: a.x, y1: a.y, x2: b.x, y2: b.y });
+      pushHistory();
+      setPrompt('Specify next point or [Enter to end]:');
+    } else {
+      setPrompt('Specify next point:');
+    }
+  },
+  onKeyDown(ev) {
+    if (ev.key === 'Enter' || ev.key === 'Escape') {
+      this.state = { points: [] };
+      setPrompt('Specify first point:');
+    }
+  },
+  drawPreview(c) {
+    if (this.state.points.length === 0) return;
+    const last = this.state.points[this.state.points.length - 1];
+    let to = state.cursor.snap || state.cursor.world;
+    to = applyConstraints(last, to);
+    const a = w2s(last), b = w2s(to);
+    c.strokeStyle = themeColors().preview; c.setLineDash([4, 4]); c.lineWidth = 1;
+    c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+    c.setLineDash([]);
+    // length and angle
+    const dist = G.dist(last, to);
+    const ang = G.angle(last, to) * 180 / Math.PI;
+    c.fillStyle = themeColors().label; c.font = '11px monospace';
+    c.fillText(formatLength(dist) + ' @ ' + ang.toFixed(1) + '°', b.x + 12, b.y - 8);
+  },
+};
+
+/* ----- POLYLINE TOOL ----- */
+tools.polyline = {
+  prompt: 'Specify start point:',
+  state: { points: [] },
+  onActivate() { this.state = { points: [] }; canvas.style.cursor = 'crosshair'; },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    let p = state.cursor.snap || world;
+    if (this.state.points.length > 0) p = applyConstraints(this.state.points[this.state.points.length - 1], p);
+    this.state.points.push(p);
+    setPrompt('Specify next point [C=close, Enter=end]:');
+  },
+  onKeyDown(ev) {
+    if (ev.key === 'Enter') {
+      if (this.state.points.length >= 2) {
+        addEntity({ type: 'polyline', points: this.state.points.slice(), closed: false });
+        pushHistory();
+      }
+      this.state = { points: [] };
+      setPrompt('Specify start point:');
+    } else if (ev.key.toLowerCase() === 'c') {
+      if (this.state.points.length >= 3) {
+        addEntity({ type: 'polyline', points: this.state.points.slice(), closed: true });
+        pushHistory();
+      }
+      this.state = { points: [] };
+      setPrompt('Specify start point:');
+    } else if (ev.key === 'Escape') {
+      this.state = { points: [] };
+      setPrompt('Specify start point:');
+    }
+  },
+  drawPreview(c) {
+    if (this.state.points.length === 0) return;
+    let to = state.cursor.snap || state.cursor.world;
+    const last = this.state.points[this.state.points.length - 1];
+    to = applyConstraints(last, to);
+    c.strokeStyle = themeColors().preview; c.lineWidth = 1; c.setLineDash([4, 4]);
+    c.beginPath();
+    for (let i = 0; i < this.state.points.length; i++) {
+      const p = w2s(this.state.points[i]);
+      if (i === 0) c.moveTo(p.x, p.y); else c.lineTo(p.x, p.y);
+    }
+    const sp = w2s(to);
+    c.lineTo(sp.x, sp.y);
+    c.stroke();
+    c.setLineDash([]);
+  },
+};
+
+/* ----- RECTANGLE TOOL ----- */
+tools.rectangle = {
+  prompt: 'Specify first corner:',
+  state: { p1: null },
+  onActivate() { this.state = { p1: null }; },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    if (!this.state.p1) {
+      this.state.p1 = p;
+      setPrompt('Specify opposite corner:');
+    } else {
+      const a = this.state.p1, b = p;
+      addEntity({ type: 'polyline', points: [{ x: a.x, y: a.y }, { x: b.x, y: a.y }, { x: b.x, y: b.y }, { x: a.x, y: b.y }], closed: true });
+      pushHistory();
+      this.state = { p1: null };
+      setPrompt('Specify first corner:');
+    }
+  },
+  onKeyDown(ev) { if (ev.key === 'Escape') { this.state = { p1: null }; setPrompt('Specify first corner:'); } },
+  drawPreview(c) {
+    if (!this.state.p1) return;
+    const a = w2s(this.state.p1);
+    const to = state.cursor.snap || state.cursor.world;
+    const b = w2s(to);
+    c.strokeStyle = themeColors().preview; c.lineWidth = 1; c.setLineDash([4, 4]);
+    c.strokeRect(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.abs(b.x - a.x), Math.abs(b.y - a.y));
+    c.setLineDash([]);
+    const dx = Math.abs(to.x - this.state.p1.x), dy = Math.abs(to.y - this.state.p1.y);
+    c.fillStyle = themeColors().label; c.font = '11px monospace';
+    c.fillText(formatLength(dx) + ' × ' + formatLength(dy), b.x + 12, b.y - 8);
+  },
+};
+
+/* ----- CIRCLE TOOL ----- */
+tools.circle = {
+  prompt: 'Specify center:',
+  state: { c: null },
+  onActivate() { this.state = { c: null }; },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    if (!this.state.c) { this.state.c = p; setPrompt('Specify radius:'); }
+    else {
+      const r = G.dist(this.state.c, p);
+      addEntity({ type: 'circle', cx: this.state.c.x, cy: this.state.c.y, r });
+      pushHistory();
+      this.state = { c: null };
+      setPrompt('Specify center:');
+    }
+  },
+  onKeyDown(ev) { if (ev.key === 'Escape') { this.state = { c: null }; setPrompt('Specify center:'); } },
+  drawPreview(c) {
+    if (!this.state.c) return;
+    const to = state.cursor.snap || state.cursor.world;
+    const r = G.dist(this.state.c, to);
+    const sc = w2s(this.state.c);
+    c.strokeStyle = themeColors().preview; c.lineWidth = 1; c.setLineDash([4, 4]);
+    c.beginPath(); c.arc(sc.x, sc.y, r * state.viewport.scale, 0, Math.PI * 2); c.stroke();
+    c.setLineDash([]);
+    c.fillStyle = themeColors().label; c.font = '11px monospace';
+    const sp = w2s(to);
+    c.fillText('r = ' + formatLength(r), sp.x + 12, sp.y - 8);
+  },
+};
+
+/* ----- ARC 3-POINT ----- */
+tools.arc = {
+  prompt: 'Specify start point:',
+  state: { points: [] },
+  onActivate() { this.state = { points: [] }; },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    this.state.points.push(p);
+    if (this.state.points.length === 1) setPrompt('Specify second point on arc:');
+    else if (this.state.points.length === 2) setPrompt('Specify end point:');
+    else if (this.state.points.length === 3) {
+      const arc = arcFrom3Points(this.state.points[0], this.state.points[1], this.state.points[2]);
+      if (arc) { addEntity(arc); pushHistory(); }
+      else logMsg('Could not construct arc (collinear points)', 'err');
+      this.state = { points: [] };
+      setPrompt('Specify start point:');
+    }
+  },
+  onKeyDown(ev) { if (ev.key === 'Escape') { this.state = { points: [] }; setPrompt('Specify start point:'); } },
+  drawPreview(c) {
+    if (this.state.points.length === 0) return;
+    const to = state.cursor.snap || state.cursor.world;
+    let pts;
+    if (this.state.points.length === 1) {
+      const a = w2s(this.state.points[0]), b = w2s(to);
+      c.strokeStyle = themeColors().preview; c.lineWidth = 1; c.setLineDash([4, 4]);
+      c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
+      c.setLineDash([]); return;
+    }
+    pts = [this.state.points[0], this.state.points[1], to];
+    if (this.state.points.length === 3) pts = this.state.points;
+    const arc = arcFrom3Points(pts[0], pts[1], pts[2]);
+    if (!arc) return;
+    const sc = w2s({ x: arc.cx, y: arc.cy });
+    c.strokeStyle = themeColors().preview; c.lineWidth = 1; c.setLineDash([4, 4]);
+    c.beginPath(); c.arc(sc.x, sc.y, arc.r * state.viewport.scale, -arc.endAngle, -arc.startAngle, false); c.stroke();
+    c.setLineDash([]);
+  },
+};
+
+function arcFrom3Points(p1, p2, p3) {
+  const ax = p2.x - p1.x, ay = p2.y - p1.y, bx = p3.x - p2.x, by = p3.y - p2.y;
+  const cross = ax * by - ay * bx;
+  if (Math.abs(cross) < 1e-10) return null;
+  const a = (p1.x * p1.x + p1.y * p1.y);
+  const b = (p2.x * p2.x + p2.y * p2.y);
+  const c = (p3.x * p3.x + p3.y * p3.y);
+  const D = 2 * (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y));
+  const ux = (a * (p2.y - p3.y) + b * (p3.y - p1.y) + c * (p1.y - p2.y)) / D;
+  const uy = (a * (p3.x - p2.x) + b * (p1.x - p3.x) + c * (p2.x - p1.x)) / D;
+  const r = Math.hypot(p1.x - ux, p1.y - uy);
+  let sa = Math.atan2(p1.y - uy, p1.x - ux);
+  let ma = Math.atan2(p2.y - uy, p2.x - ux);
+  let ea = Math.atan2(p3.y - uy, p3.x - ux);
+  // normalize so we go CCW from sa through ma to ea
+  const norm = (a) => { while (a < 0) a += Math.PI * 2; while (a >= Math.PI * 2) a -= Math.PI * 2; return a; };
+  sa = norm(sa); ma = norm(ma); ea = norm(ea);
+  // if mid not between sa and ea CCW, swap
+  let s = sa, e = ea;
+  let m = ma;
+  if (m < s) m += Math.PI * 2;
+  if (e < s) e += Math.PI * 2;
+  if (m > e) { // not in range, go CW: swap
+    [s, e] = [ea, sa];
+    if (e < s) e += Math.PI * 2;
+  }
+  return { type: 'arc', cx: ux, cy: uy, r, startAngle: sa, endAngle: ea < sa ? ea + Math.PI * 2 : ea };
+}
+
+/* ----- ELLIPSE ----- */
+tools.ellipse = {
+  prompt: 'Specify center:',
+  state: { c: null, rx: null },
+  onActivate() { this.state = { c: null, rx: null }; },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    if (!this.state.c) { this.state.c = p; setPrompt('Specify endpoint of axis:'); }
+    else if (this.state.rx === null) {
+      this.state.rx = G.dist(this.state.c, p);
+      setPrompt('Specify second axis distance:');
+    } else {
+      const ry = G.dist(this.state.c, p);
+      addEntity({ type: 'ellipse', cx: this.state.c.x, cy: this.state.c.y, rx: this.state.rx, ry, rotation: 0 });
+      pushHistory();
+      this.state = { c: null, rx: null };
+      setPrompt('Specify center:');
+    }
+  },
+  onKeyDown(ev) { if (ev.key === 'Escape') { this.state = { c: null, rx: null }; setPrompt('Specify center:'); } },
+  drawPreview(c) {
+    if (!this.state.c) return;
+    const sc = w2s(this.state.c);
+    const to = state.cursor.snap || state.cursor.world;
+    let rx = this.state.rx, ry;
+    if (rx === null) { rx = G.dist(this.state.c, to); ry = rx * 0.5; }
+    else ry = G.dist(this.state.c, to);
+    c.strokeStyle = themeColors().preview; c.lineWidth = 1; c.setLineDash([4, 4]);
+    c.beginPath();
+    c.ellipse(sc.x, sc.y, rx * state.viewport.scale, ry * state.viewport.scale, 0, 0, Math.PI * 2);
+    c.stroke(); c.setLineDash([]);
+  },
+};
+
+/* ----- TEXT ----- */
+tools.text = {
+  prompt: 'Specify insertion point:',
+  state: { p: null },
+  onActivate() { this.state = { p: null }; },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    const txt = prompt('Enter text:', '');
+    if (txt) {
+      const heightStr = prompt('Text height (' + state.units + '):', '0.5');
+      const h = parseFloat(heightStr) || 0.5;
+      addEntity({ type: 'text', x: p.x, y: p.y, text: txt, height: h, rotation: 0 });
+      pushHistory();
+    }
+    setTool('select');
+  },
+  onKeyDown(ev) { if (ev.key === 'Escape') setTool('select'); },
+  drawPreview() {},
+};
+
+/* ----- DIMENSION (linear) ----- */
+tools.dimension = {
+  prompt: 'Specify first extension point:',
+  state: { p1: null, p2: null },
+  onActivate() { this.state = { p1: null, p2: null }; },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    if (!this.state.p1) { this.state.p1 = p; setPrompt('Specify second extension point:'); }
+    else if (!this.state.p2) { this.state.p2 = p; setPrompt('Specify dimension line location:'); }
+    else {
+      addEntity({ type: 'dimension', dimType: 'aligned', p1: this.state.p1, p2: this.state.p2, dimLinePt: p });
+      pushHistory();
+      this.state = { p1: null, p2: null };
+      setPrompt('Specify first extension point:');
+    }
+  },
+  onKeyDown(ev) { if (ev.key === 'Escape') { this.state = { p1: null, p2: null }; setPrompt('Specify first extension point:'); } },
+  drawPreview(c) {
+    if (!this.state.p1) return;
+    const to = state.cursor.snap || state.cursor.world;
+    if (!this.state.p2) {
+      const a = w2s(this.state.p1), b = w2s(to);
+      c.strokeStyle = themeColors().preview; c.lineWidth = 1; c.setLineDash([4, 4]);
+      c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); c.setLineDash([]);
+      return;
+    }
+    drawDimension({ type: 'dimension', dimType: 'aligned', p1: this.state.p1, p2: this.state.p2, dimLinePt: to }, '#888');
+  },
+};
+
+/* ----- HATCH (solid fill of selected closed polyline) ----- */
+tools.hatch = {
+  prompt: 'Pick a closed polyline to hatch:',
+  onActivate() {},
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const id = selectAt(world);
+    if (!id) return;
+    const e = state.entities.get(id);
+    if (e.type !== 'polyline' || !e.closed) { logMsg('Hatch needs a closed polyline', 'err'); return; }
+    const pattern = (prompt('Pattern (solid/lines):', 'solid') || 'solid').toLowerCase();
+    addEntity({ type: 'hatch', points: e.points.map(p => ({ ...p })), pattern, angle: Math.PI / 4, spacing: 0.5 });
+    pushHistory();
+    setTool('select');
+  },
+  onKeyDown(ev) { if (ev.key === 'Escape') setTool('select'); },
+  drawPreview() {},
+};
+
+/* ----- ERASE ----- */
+tools.erase = {
+  prompt: 'Select objects to erase:',
+  onActivate() {},
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const id = selectAt(world);
+    if (id) {
+      state.entities.delete(id);
+      state.selection.delete(id);
+      pushHistory();
+    }
+  },
+  onKeyDown(ev) { if (ev.key === 'Escape' || ev.key === 'Enter') setTool('select'); },
+  drawPreview() {},
+};
+
+/* ----- MOVE ----- */
+tools.move = {
+  prompt: 'Select objects (Enter to confirm):',
+  state: { phase: 'select', base: null, ids: [] },
+  onActivate() {
+    this.state = { phase: 'select', base: null, ids: [...state.selection] };
+    if (this.state.ids.length > 0) { this.state.phase = 'base'; setPrompt('Specify base point:'); }
+  },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    if (this.state.phase === 'select') {
+      const id = selectAt(world);
+      if (id) { state.selection.add(id); this.state.ids = [...state.selection]; }
+    } else if (this.state.phase === 'base') {
+      this.state.base = p; this.state.phase = 'dest'; setPrompt('Specify destination point:');
+    } else if (this.state.phase === 'dest') {
+      const dest = applyConstraints(this.state.base, p);
+      const dx = dest.x - this.state.base.x, dy = dest.y - this.state.base.y;
+      for (const id of this.state.ids) {
+        const e = state.entities.get(id);
+        if (!e) continue;
+        Ent.transform(e, (q) => ({ x: q.x + dx, y: q.y + dy }));
+      }
+      pushHistory();
+      setTool('select');
+    }
+  },
+  onKeyDown(ev) {
+    if (ev.key === 'Enter' && this.state.phase === 'select' && this.state.ids.length > 0) {
+      this.state.phase = 'base'; setPrompt('Specify base point:');
+    }
+    if (ev.key === 'Escape') setTool('select');
+  },
+  drawPreview(c) {
+    if (this.state.phase === 'dest' && this.state.base) {
+      const to = state.cursor.snap || state.cursor.world;
+      const dest = applyConstraints(this.state.base, to);
+      const a = w2s(this.state.base), b = w2s(dest);
+      c.strokeStyle = themeColors().preview; c.setLineDash([4, 4]); c.lineWidth = 1;
+      c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); c.setLineDash([]);
+      // ghost preview
+      const dx = dest.x - this.state.base.x, dy = dest.y - this.state.base.y;
+      c.strokeStyle = '#3399ff66'; c.lineWidth = 1.5;
+      for (const id of this.state.ids) {
+        const e = state.entities.get(id);
+        if (!e) continue;
+        const ghost = JSON.parse(JSON.stringify(e));
+        Ent.transform(ghost, (q) => ({ x: q.x + dx, y: q.y + dy }));
+        drawEntityGhost(ghost);
+      }
+    }
+  },
+};
+
+function drawEntityGhost(e) {
+  ctx.strokeStyle = '#3399ff';
+  ctx.fillStyle = '#3399ff';
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 1;
+  switch (e.type) {
+    case 'line': { const a = w2s({ x: e.x1, y: e.y1 }), b = w2s({ x: e.x2, y: e.y2 }); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); break; }
+    case 'polyline': { ctx.beginPath(); for (let i = 0; i < e.points.length; i++) { const p = w2s(e.points[i]); if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); } if (e.closed) ctx.closePath(); ctx.stroke(); break; }
+    case 'circle': { const c = w2s({ x: e.cx, y: e.cy }); ctx.beginPath(); ctx.arc(c.x, c.y, e.r * state.viewport.scale, 0, Math.PI * 2); ctx.stroke(); break; }
+    case 'arc': { const c = w2s({ x: e.cx, y: e.cy }); ctx.beginPath(); ctx.arc(c.x, c.y, e.r * state.viewport.scale, -e.endAngle, -e.startAngle, false); ctx.stroke(); break; }
+    case 'ellipse': { const c = w2s({ x: e.cx, y: e.cy }); ctx.beginPath(); ctx.ellipse(c.x, c.y, e.rx * state.viewport.scale, e.ry * state.viewport.scale, 0, 0, Math.PI * 2); ctx.stroke(); break; }
+    case 'wall': {
+      const edges = computeWallEdges(e.points, e.thickness || 0.5);
+      if (edges) {
+        for (const side of [edges.left, edges.right]) {
+          ctx.beginPath();
+          for (let i = 0; i < side.length; i++) {
+            const p = w2s(side[i]);
+            if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+          }
+          ctx.stroke();
+        }
+      }
+      break;
+    }
+    case 'door': drawDoor(e, '#3399ff'); break;
+    case 'window': drawWindow(e, '#3399ff'); break;
+    case 'room': {
+      ctx.beginPath();
+      for (let i = 0; i < e.boundary.length; i++) {
+        const sp = w2s(e.boundary[i]);
+        if (i === 0) ctx.moveTo(sp.x, sp.y); else ctx.lineTo(sp.x, sp.y);
+      }
+      ctx.closePath(); ctx.stroke();
+      break;
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ----- COPY ----- */
+tools.copy = {
+  prompt: 'Select objects (Enter to confirm):',
+  state: { phase: 'select', base: null, ids: [] },
+  onActivate() {
+    this.state = { phase: 'select', base: null, ids: [...state.selection] };
+    if (this.state.ids.length > 0) { this.state.phase = 'base'; setPrompt('Specify base point:'); }
+  },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    if (this.state.phase === 'select') {
+      const id = selectAt(world);
+      if (id) { state.selection.add(id); this.state.ids = [...state.selection]; }
+    } else if (this.state.phase === 'base') {
+      this.state.base = p; this.state.phase = 'dest'; setPrompt('Specify destination point [Esc=end]:');
+    } else if (this.state.phase === 'dest') {
+      const dest = applyConstraints(this.state.base, p);
+      const dx = dest.x - this.state.base.x, dy = dest.y - this.state.base.y;
+      for (const id of this.state.ids) {
+        const e = state.entities.get(id);
+        if (!e) continue;
+        const cp = JSON.parse(JSON.stringify(e));
+        cp.id = newId();
+        Ent.transform(cp, (q) => ({ x: q.x + dx, y: q.y + dy }));
+        state.entities.set(cp.id, cp);
+      }
+      pushHistory();
+      // stay in copy mode for repeat copies
+    }
+  },
+  onKeyDown(ev) {
+    if (ev.key === 'Enter' && this.state.phase === 'select' && this.state.ids.length > 0) {
+      this.state.phase = 'base'; setPrompt('Specify base point:');
+    }
+    if (ev.key === 'Escape') setTool('select');
+  },
+  drawPreview(c) { tools.move.drawPreview.call(this, c); },
+};
+
+/* ----- ROTATE ----- */
+tools.rotate = {
+  prompt: 'Select objects (Enter to confirm):',
+  state: { phase: 'select', base: null, ids: [], refAngle: 0 },
+  onActivate() {
+    this.state = { phase: 'select', base: null, ids: [...state.selection], refAngle: 0 };
+    if (this.state.ids.length > 0) { this.state.phase = 'base'; setPrompt('Specify base point:'); }
+  },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    if (this.state.phase === 'select') {
+      const id = selectAt(world);
+      if (id) { state.selection.add(id); this.state.ids = [...state.selection]; }
+    } else if (this.state.phase === 'base') {
+      this.state.base = p; this.state.phase = 'angle';
+      setPrompt('Specify rotation angle:');
+    } else if (this.state.phase === 'angle') {
+      const ang = G.angle(this.state.base, p);
+      for (const id of this.state.ids) {
+        const e = state.entities.get(id);
+        if (!e) continue;
+        rotateEntity(e, this.state.base, ang);
+      }
+      pushHistory();
+      setTool('select');
+    }
+  },
+  onKeyDown(ev) {
+    if (ev.key === 'Enter' && this.state.phase === 'select' && this.state.ids.length > 0) {
+      this.state.phase = 'base'; setPrompt('Specify base point:');
+    }
+    if (ev.key === 'Escape') setTool('select');
+  },
+  drawPreview(c) {
+    if (this.state.phase === 'angle' && this.state.base) {
+      const to = state.cursor.snap || state.cursor.world;
+      const ang = G.angle(this.state.base, to);
+      const sb = w2s(this.state.base), st = w2s(to);
+      c.strokeStyle = themeColors().preview; c.setLineDash([4, 4]);
+      c.beginPath(); c.moveTo(sb.x, sb.y); c.lineTo(st.x, st.y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = themeColors().label; c.font = '11px monospace';
+      c.fillText((ang * 180 / Math.PI).toFixed(1) + '°', st.x + 12, st.y - 8);
+      // ghost
+      c.strokeStyle = '#3399ff'; c.globalAlpha = 0.5;
+      for (const id of this.state.ids) {
+        const e = state.entities.get(id);
+        if (!e) continue;
+        const ghost = JSON.parse(JSON.stringify(e));
+        rotateEntity(ghost, this.state.base, ang);
+        drawEntityGhost(ghost);
+      }
+      c.globalAlpha = 1;
+    }
+  },
+};
+
+function rotateEntity(e, c, ang) {
+  Ent.transform(e, (p) => G.rot(p, c, ang));
+  if (e.type === 'arc') { e.startAngle += ang; e.endAngle += ang; }
+  if (e.type === 'ellipse') { e.rotation = (e.rotation || 0) + ang; }
+  if (e.type === 'text') { e.rotation = (e.rotation || 0) + ang; }
+}
+
+/* ----- MIRROR ----- */
+tools.mirror = {
+  prompt: 'Select objects (Enter to confirm):',
+  state: { phase: 'select', a: null, ids: [] },
+  onActivate() {
+    this.state = { phase: 'select', a: null, ids: [...state.selection] };
+    if (this.state.ids.length > 0) { this.state.phase = 'a'; setPrompt('Specify first point of mirror line:'); }
+  },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    if (this.state.phase === 'select') {
+      const id = selectAt(world);
+      if (id) { state.selection.add(id); this.state.ids = [...state.selection]; }
+    } else if (this.state.phase === 'a') {
+      this.state.a = p; this.state.phase = 'b'; setPrompt('Specify second point [Y=delete source]:');
+    } else if (this.state.phase === 'b') {
+      const b = p;
+      const keep = !confirm('Delete source objects? OK = delete, Cancel = keep');
+      if (keep) {
+        // duplicate first
+        const newIds = [];
+        for (const id of this.state.ids) {
+          const e = state.entities.get(id);
+          if (!e) continue;
+          const cp = JSON.parse(JSON.stringify(e)); cp.id = newId();
+          state.entities.set(cp.id, cp);
+          newIds.push(cp.id);
+        }
+        for (const id of newIds) {
+          const e = state.entities.get(id);
+          mirrorEntity(e, this.state.a, b);
+        }
+      } else {
+        for (const id of this.state.ids) {
+          const e = state.entities.get(id);
+          if (!e) continue;
+          mirrorEntity(e, this.state.a, b);
+        }
+      }
+      pushHistory();
+      setTool('select');
+    }
+  },
+  onKeyDown(ev) {
+    if (ev.key === 'Enter' && this.state.phase === 'select' && this.state.ids.length > 0) {
+      this.state.phase = 'a'; setPrompt('Specify first point of mirror line:');
+    }
+    if (ev.key === 'Escape') setTool('select');
+  },
+  drawPreview(c) {
+    if (this.state.phase === 'b' && this.state.a) {
+      const to = state.cursor.snap || state.cursor.world;
+      const sa = w2s(this.state.a), sb = w2s(to);
+      c.strokeStyle = themeColors().preview; c.setLineDash([4, 4]);
+      c.beginPath(); c.moveTo(sa.x, sa.y); c.lineTo(sb.x, sb.y); c.stroke(); c.setLineDash([]);
+      c.strokeStyle = '#3399ff'; c.globalAlpha = 0.5;
+      for (const id of this.state.ids) {
+        const e = state.entities.get(id);
+        if (!e) continue;
+        const ghost = JSON.parse(JSON.stringify(e));
+        mirrorEntity(ghost, this.state.a, to);
+        drawEntityGhost(ghost);
+      }
+      c.globalAlpha = 1;
+    }
+  },
+};
+
+function mirrorEntity(e, a, b) {
+  Ent.transform(e, (p) => G.mirrorAbout(p, a, b));
+  if (e.type === 'arc') {
+    // mirror angles
+    const ang = G.angle(a, b);
+    const mAng = (orig) => 2 * ang - orig;
+    const ns = mAng(e.endAngle), ne = mAng(e.startAngle);
+    e.startAngle = ns; e.endAngle = ne;
+  }
+}
+
+/* ----- SCALE ----- */
+tools.scale = {
+  prompt: 'Select objects (Enter to confirm):',
+  state: { phase: 'select', base: null, ids: [] },
+  onActivate() {
+    this.state = { phase: 'select', base: null, ids: [...state.selection] };
+    if (this.state.ids.length > 0) { this.state.phase = 'base'; setPrompt('Specify base point:'); }
+  },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    if (this.state.phase === 'select') {
+      const id = selectAt(world);
+      if (id) { state.selection.add(id); this.state.ids = [...state.selection]; }
+    } else if (this.state.phase === 'base') {
+      this.state.base = p; this.state.phase = 'factor';
+      setPrompt('Specify scale factor (drag) or type value:');
+    } else if (this.state.phase === 'factor') {
+      const f = G.dist(this.state.base, p);
+      if (f < 1e-9) return;
+      for (const id of this.state.ids) {
+        const e = state.entities.get(id);
+        if (!e) continue;
+        scaleEntity(e, this.state.base, f);
+      }
+      pushHistory();
+      setTool('select');
+    }
+  },
+  onKeyDown(ev) {
+    if (ev.key === 'Enter' && this.state.phase === 'select' && this.state.ids.length > 0) {
+      this.state.phase = 'base'; setPrompt('Specify base point:');
+    }
+    if (ev.key === 'Escape') setTool('select');
+  },
+  drawPreview(c) {
+    if (this.state.phase === 'factor' && this.state.base) {
+      const to = state.cursor.snap || state.cursor.world;
+      const f = G.dist(this.state.base, to);
+      const sb = w2s(this.state.base), st = w2s(to);
+      c.strokeStyle = themeColors().preview; c.setLineDash([4, 4]);
+      c.beginPath(); c.moveTo(sb.x, sb.y); c.lineTo(st.x, st.y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = themeColors().label; c.font = '11px monospace';
+      c.fillText('×' + f.toFixed(3), st.x + 12, st.y - 8);
+      c.strokeStyle = '#3399ff'; c.globalAlpha = 0.5;
+      for (const id of this.state.ids) {
+        const e = state.entities.get(id);
+        if (!e) continue;
+        const ghost = JSON.parse(JSON.stringify(e));
+        scaleEntity(ghost, this.state.base, f);
+        drawEntityGhost(ghost);
+      }
+      c.globalAlpha = 1;
+    }
+  },
+};
+
+function scaleEntity(e, c, f) {
+  Ent.transform(e, (p) => G.scaleAbout(p, c, f));
+  if (e.type === 'circle' || e.type === 'arc') e.r *= f;
+  if (e.type === 'ellipse') { e.rx *= f; e.ry *= f; }
+  if (e.type === 'text') e.height *= f;
+  if (e.type === 'wall') e.thickness *= f;
+  if (e.type === 'door' || e.type === 'window') {
+    e.width *= f;
+    if (e.thickness) e.thickness *= f;
+  }
+}
+
+/* ----- OFFSET ----- */
+tools.offset = {
+  prompt: 'Specify offset distance:',
+  state: { phase: 'dist', dist: null, target: null },
+  onActivate() {
+    const v = prompt('Offset distance:', '1');
+    const d = parseFloat(v);
+    if (isNaN(d) || d <= 0) { setTool('select'); return; }
+    this.state = { phase: 'pick', dist: d, target: null };
+    setPrompt('Select object to offset:');
+  },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    if (this.state.phase === 'pick') {
+      const id = selectAt(world);
+      if (!id) return;
+      this.state.target = id;
+      this.state.phase = 'side';
+      setPrompt('Specify side to offset:');
+    } else if (this.state.phase === 'side') {
+      const e = state.entities.get(this.state.target);
+      if (!e) return;
+      const offEnt = offsetEntity(e, world, this.state.dist);
+      if (offEnt) { addEntity(offEnt); pushHistory(); }
+      else logMsg('Could not offset this entity', 'err');
+      this.state.phase = 'pick';
+      this.state.target = null;
+      setPrompt('Select next object [Esc=end]:');
+    }
+  },
+  onKeyDown(ev) { if (ev.key === 'Escape' || ev.key === 'Enter') setTool('select'); },
+  drawPreview() {},
+};
+
+function offsetEntity(e, side, d) {
+  if (e.type === 'line') {
+    const a = { x: e.x1, y: e.y1 }, b = { x: e.x2, y: e.y2 };
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+    let nx = -dy / len, ny = dx / len;
+    // pick side
+    const cp = G.closestOnLine(side, a, b);
+    const dir = { x: side.x - cp.x, y: side.y - cp.y };
+    if (dir.x * nx + dir.y * ny < 0) { nx = -nx; ny = -ny; }
+    return { type: 'line', x1: a.x + nx * d, y1: a.y + ny * d, x2: b.x + nx * d, y2: b.y + ny * d };
+  }
+  if (e.type === 'circle') {
+    const ds = G.dist({ x: e.cx, y: e.cy }, side);
+    const sign = ds > e.r ? 1 : -1;
+    const nr = e.r + sign * d;
+    if (nr <= 0) return null;
+    return { type: 'circle', cx: e.cx, cy: e.cy, r: nr };
+  }
+  if (e.type === 'arc') {
+    const ds = G.dist({ x: e.cx, y: e.cy }, side);
+    const sign = ds > e.r ? 1 : -1;
+    const nr = e.r + sign * d;
+    if (nr <= 0) return null;
+    return { type: 'arc', cx: e.cx, cy: e.cy, r: nr, startAngle: e.startAngle, endAngle: e.endAngle };
+  }
+  if (e.type === 'polyline') {
+    // Simple: offset each segment perpendicularly and join at intersections
+    const pts = e.points;
+    const closed = e.closed;
+    const N = pts.length;
+    if (N < 2) return null;
+    // determine sign by checking first segment
+    const a = pts[0], b = pts[1];
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+    let nx = -dy / len, ny = dx / len;
+    const cp = G.closestOnLine(side, a, b);
+    const dir = { x: side.x - cp.x, y: side.y - cp.y };
+    if (dir.x * nx + dir.y * ny < 0) { nx = -nx; ny = -ny; }
+    // signed distance: positive in direction (nx,ny)
+    // offset each segment
+    const segs = [];
+    for (let i = 0; i < N - 1; i++) {
+      const p1 = pts[i], p2 = pts[i + 1];
+      const sdx = p2.x - p1.x, sdy = p2.y - p1.y, sl = Math.hypot(sdx, sdy) || 1;
+      // determine sign relative to original direction
+      // for consistent winding, we use a perpendicular that follows the sign chosen for first segment
+      // but each subsequent segment may have different orientation; we need to decide which side.
+      // Use winding-consistent approach: rotate the perpendicular based on whether segment direction has changed.
+      // Simpler: for each segment use perpendicular consistent with first segment's sign relative to that segment's direction.
+      // We'll compute sn as left or right of (sdx,sdy). first segment: (nx,ny) = ?
+      // For first segment dir (dx,dy), the perpendicular to its left is (-dy,dx) and right is (dy,-dx).
+      // We chose (nx,ny). Compute scalar 'side' = sign of cross product between segment and (nx,ny).
+      // Actually simpler: just use perpendicular such that signed offset is consistent — left perpendicular.
+      // Decision: at first segment, we picked nx,ny. For other segments use the same handedness:
+      // i.e., perpendicular to (sdx,sdy) on the same side.
+      // Cross of first seg with first nx,ny tells us "left" vs "right".
+      // For subsequent: use perpendicular(-sdy,sdx)/sl scaled by same sign.
+      let sgn = 1;
+      // recompute by cross:
+      // first seg cross: dx * (-dy/len) ... that's just length squared / -len -> negative => "left perp"
+      // Actually we just preserve sign: compute first seg cross between (sdx,sdy) and (nx,ny):
+      // For first seg: cross1 = dx*ny - dy*nx  (positive => nx,ny is left of direction)
+      // We want same sign for all
+      const cross1 = dx * ny - dy * nx;
+      const px = -sdy / sl, py = sdx / sl; // left perpendicular
+      const crossi = sdx * py - sdy * px;
+      const useLeft = (cross1 >= 0) === (crossi >= 0);
+      const fnx = useLeft ? px : -px;
+      const fny = useLeft ? py : -py;
+      segs.push({
+        a: { x: p1.x + fnx * d, y: p1.y + fny * d },
+        b: { x: p2.x + fnx * d, y: p2.y + fny * d },
+      });
+    }
+    if (closed) {
+      const p1 = pts[N - 1], p2 = pts[0];
+      const sdx = p2.x - p1.x, sdy = p2.y - p1.y, sl = Math.hypot(sdx, sdy) || 1;
+      const cross1 = dx * ny - dy * nx;
+      const px = -sdy / sl, py = sdx / sl;
+      const crossi = sdx * py - sdy * px;
+      const useLeft = (cross1 >= 0) === (crossi >= 0);
+      const fnx = useLeft ? px : -px;
+      const fny = useLeft ? py : -py;
+      segs.push({
+        a: { x: p1.x + fnx * d, y: p1.y + fny * d },
+        b: { x: p2.x + fnx * d, y: p2.y + fny * d },
+      });
+    }
+    // join consecutive segments at intersections
+    const newPts = [];
+    if (!closed) newPts.push({ ...segs[0].a });
+    for (let i = 0; i < segs.length; i++) {
+      const next = segs[(i + 1) % segs.length];
+      if (i === segs.length - 1 && !closed) { newPts.push({ ...segs[i].b }); break; }
+      const ip = G.lineLineIntersect(segs[i].a, segs[i].b, next.a, next.b);
+      if (ip) newPts.push({ x: ip.x, y: ip.y });
+      else newPts.push({ ...segs[i].b });
+    }
+    return { type: 'polyline', points: newPts, closed };
+  }
+  return null;
+}
+
+/* ----- TRIM ----- */
+tools.trim = {
+  prompt: 'Select object to trim (click on segment to remove):',
+  onActivate() {},
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const id = selectAt(world);
+    if (!id) return;
+    const target = state.entities.get(id);
+    if (!target) return;
+    // find intersections with all other entities
+    let pts = [];
+    for (const e of state.entities.values()) {
+      if (e.id === target.id) continue;
+      const layer = state.layers.get(e.layer);
+      if (!layer || !layer.visible) continue;
+      pts = pts.concat(entityIntersect(target, e));
+    }
+    if (target.type === 'line') {
+      // sort intersections by t along line
+      const a = { x: target.x1, y: target.y1 }, b = { x: target.x2, y: target.y2 };
+      const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+      const ts = pts.map(p => ({ p, t: ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2 })).filter(o => o.t > 1e-6 && o.t < 1 - 1e-6).sort((x, y) => x.t - y.t);
+      const clickT = ((world.x - a.x) * dx + (world.y - a.y) * dy) / l2;
+      // find segment containing click
+      let lo = 0, hi = 1;
+      for (const o of ts) { if (o.t < clickT) lo = o.t; else { hi = o.t; break; } }
+      if (lo === 0 && hi === 1) { logMsg('No cutting edge found', 'err'); return; }
+      // remove segment lo..hi -> keep two pieces 0..lo and hi..1
+      const newSegs = [];
+      if (lo > 1e-6) newSegs.push([0, lo]);
+      if (hi < 1 - 1e-6) newSegs.push([hi, 1]);
+      state.entities.delete(target.id);
+      state.selection.delete(target.id);
+      for (const [s, e] of newSegs) {
+        addEntity({ type: 'line', x1: a.x + s * dx, y1: a.y + s * dy, x2: a.x + e * dx, y2: a.y + e * dy, layer: target.layer });
+      }
+      pushHistory();
+    } else if (target.type === 'circle') {
+      // sort by angle
+      const angs = pts.map(p => ((Math.atan2(p.y - target.cy, p.x - target.cx) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)).sort((a, b) => a - b);
+      const clickA = ((Math.atan2(world.y - target.cy, world.x - target.cx) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      if (angs.length < 2) { logMsg('Need at least 2 cutting edges to trim circle', 'err'); return; }
+      // find segment
+      let lo = angs[angs.length - 1] - 2 * Math.PI, hi = angs[0];
+      for (let i = 0; i < angs.length; i++) {
+        if (angs[i] > clickA) { hi = angs[i]; lo = i === 0 ? angs[angs.length - 1] - 2 * Math.PI : angs[i - 1]; break; }
+      }
+      // create arc from hi to lo (going around)
+      let sa = hi, ea = lo + 2 * Math.PI;
+      if (ea < sa) ea += 2 * Math.PI;
+      state.entities.delete(target.id);
+      state.selection.delete(target.id);
+      addEntity({ type: 'arc', cx: target.cx, cy: target.cy, r: target.r, startAngle: sa, endAngle: ea, layer: target.layer });
+      pushHistory();
+    } else {
+      logMsg('Trim only supports line and circle', 'err');
+    }
+  },
+  onKeyDown(ev) { if (ev.key === 'Escape' || ev.key === 'Enter') setTool('select'); },
+  drawPreview() {},
+};
+
+/* ----- FILLET (two lines) ----- */
+tools.fillet = {
+  prompt: 'Specify fillet radius:',
+  state: { r: 0, first: null },
+  onActivate() {
+    const v = prompt('Fillet radius:', '0.5');
+    const r = parseFloat(v);
+    if (isNaN(r) || r < 0) { setTool('select'); return; }
+    this.state = { r, first: null };
+    setPrompt('Pick first line:');
+  },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const id = selectAt(world);
+    if (!id) return;
+    const e = state.entities.get(id);
+    if (!e || e.type !== 'line') { logMsg('Pick a line', 'err'); return; }
+    if (!this.state.first) { this.state.first = e; setPrompt('Pick second line:'); return; }
+    const a = this.state.first, b = e;
+    const result = filletLines(a, b, this.state.r);
+    if (!result) { logMsg('Cannot fillet (parallel or no intersection)', 'err'); return; }
+    state.entities.delete(a.id); state.entities.delete(b.id);
+    addEntity(result.line1);
+    addEntity(result.line2);
+    if (result.arc) addEntity(result.arc);
+    pushHistory();
+    setTool('select');
+  },
+  onKeyDown(ev) { if (ev.key === 'Escape') setTool('select'); },
+  drawPreview() {},
+};
+
+function filletLines(a, b, r) {
+  const A1 = { x: a.x1, y: a.y1 }, A2 = { x: a.x2, y: a.y2 };
+  const B1 = { x: b.x1, y: b.y1 }, B2 = { x: b.x2, y: b.y2 };
+  const ip = G.lineLineIntersect(A1, A2, B1, B2);
+  if (!ip) return null;
+  // unit vectors from intersection toward farther endpoint of each line
+  const farA = G.dist(ip, A1) > G.dist(ip, A2) ? A1 : A2;
+  const farB = G.dist(ip, B1) > G.dist(ip, B2) ? B1 : B2;
+  const va = { x: farA.x - ip.x, y: farA.y - ip.y };
+  const vb = { x: farB.x - ip.x, y: farB.y - ip.y };
+  const la = Math.hypot(va.x, va.y), lb = Math.hypot(vb.x, vb.y);
+  if (la === 0 || lb === 0) return null;
+  const ua = { x: va.x / la, y: va.y / la };
+  const ub = { x: vb.x / lb, y: vb.y / lb };
+  const ang = Math.acos(Math.max(-1, Math.min(1, ua.x * ub.x + ua.y * ub.y)));
+  if (ang < 1e-6 || Math.abs(ang - Math.PI) < 1e-6) return null;
+  const t = r / Math.tan(ang / 2);
+  if (t > la || t > lb) return null;
+  const ta = { x: ip.x + ua.x * t, y: ip.y + ua.y * t };
+  const tb = { x: ip.x + ub.x * t, y: ip.y + ub.y * t };
+  // arc center: bisector
+  const bisector = { x: ua.x + ub.x, y: ua.y + ub.y };
+  const bl = Math.hypot(bisector.x, bisector.y) || 1;
+  const distToCenter = r / Math.sin(ang / 2);
+  const center = { x: ip.x + (bisector.x / bl) * distToCenter, y: ip.y + (bisector.y / bl) * distToCenter };
+  let sa = Math.atan2(ta.y - center.y, ta.x - center.x);
+  let ea = Math.atan2(tb.y - center.y, tb.x - center.x);
+  // ensure CCW
+  if (ea < sa) ea += Math.PI * 2;
+  if (ea - sa > Math.PI) [sa, ea] = [ea, sa + Math.PI * 2];
+  return {
+    line1: { type: 'line', x1: farA.x, y1: farA.y, x2: ta.x, y2: ta.y, layer: a.layer },
+    line2: { type: 'line', x1: farB.x, y1: farB.y, x2: tb.x, y2: tb.y, layer: b.layer },
+    arc: r > 0 ? { type: 'arc', cx: center.x, cy: center.y, r, startAngle: sa, endAngle: ea, layer: a.layer } : null,
+  };
+}
+
+/* ----- WALL ----- */
+let lastWallThickness = 0.5;
+tools.wall = {
+  prompt: 'Specify wall start point:',
+  state: { points: [], thickness: 0.5 },
+  onActivate() {
+    const v = prompt('Wall thickness (' + state.units + '):', String(lastWallThickness));
+    const t = parseFloat(v);
+    if (isNaN(t) || t <= 0) { setTool('select'); return; }
+    lastWallThickness = t;
+    this.state = { points: [], thickness: t };
+    setPrompt('Specify wall start point:');
+    // switch active layer to Walls if exists
+    for (const l of state.layers.values()) if (l.name.toLowerCase() === 'walls') { state.activeLayerId = l.id; refreshLayersUI(); break; }
+  },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    let p = state.cursor.snap || world;
+    if (this.state.points.length > 0) p = applyConstraints(this.state.points[this.state.points.length - 1], p);
+    this.state.points.push(p);
+    setPrompt('Specify next point [Enter=end, C=close, Esc=cancel]:');
+  },
+  onKeyDown(ev) {
+    if (ev.key === 'Enter') {
+      if (this.state.points.length >= 2) {
+        addEntity({ type: 'wall', points: this.state.points.slice(), thickness: this.state.thickness, closed: false });
+        pushHistory();
+      }
+      this.state = { points: [], thickness: this.state.thickness };
+      setPrompt('Specify wall start point:');
+    } else if (ev.key.toLowerCase() === 'c') {
+      if (this.state.points.length >= 3) {
+        const pts = this.state.points.slice();
+        pts.push({ ...pts[0] });
+        addEntity({ type: 'wall', points: pts, thickness: this.state.thickness, closed: true });
+        pushHistory();
+      }
+      this.state = { points: [], thickness: this.state.thickness };
+      setPrompt('Specify wall start point:');
+    } else if (ev.key === 'Escape') {
+      this.state = { points: [], thickness: this.state.thickness };
+      setPrompt('Specify wall start point:');
+    }
+  },
+  drawPreview(c) {
+    if (this.state.points.length === 0) return;
+    let to = state.cursor.snap || state.cursor.world;
+    const last = this.state.points[this.state.points.length - 1];
+    to = applyConstraints(last, to);
+    const previewPts = [...this.state.points, to];
+    const edges = computeWallEdges(previewPts, this.state.thickness);
+    if (!edges) return;
+    c.strokeStyle = themeColors().preview; c.lineWidth = 1; c.setLineDash([4, 4]);
+    for (const side of [edges.left, edges.right]) {
+      c.beginPath();
+      for (let i = 0; i < side.length; i++) {
+        const p = w2s(side[i]);
+        if (i === 0) c.moveTo(p.x, p.y); else c.lineTo(p.x, p.y);
+      }
+      c.stroke();
+    }
+    c.setLineDash([]);
+    const dist = G.dist(last, to);
+    const sp = w2s(to);
+    c.fillStyle = themeColors().label; c.font = '11px monospace';
+    c.fillText(formatLength(dist) + ' • t=' + formatLength(this.state.thickness), sp.x + 12, sp.y - 8);
+  },
+};
+
+/* ----- DOOR ----- */
+let lastDoorWidth = 2.67;
+tools.door = {
+  prompt: 'Specify door hinge point:',
+  state: { phase: 'hinge', hinge: null, swing: 1 },
+  onActivate() {
+    const v = prompt('Door width (' + state.units + '):', String(lastDoorWidth));
+    const w = parseFloat(v);
+    if (isNaN(w) || w <= 0) { setTool('select'); return; }
+    lastDoorWidth = w;
+    this.state = { phase: 'hinge', hinge: null, swing: 1, width: w };
+    setPrompt('Click hinge point on a wall:');
+    for (const l of state.layers.values()) if (l.name.toLowerCase() === 'doors') { state.activeLayerId = l.id; refreshLayersUI(); break; }
+  },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    if (this.state.phase === 'hinge') {
+      this.state.hinge = p;
+      // try to detect host wall angle from snap or nearest wall
+      const wallAngle = guessWallAngleAt(p);
+      this.state.wallAngle = wallAngle;
+      this.state.phase = 'direction';
+      setPrompt('Click direction the door swings open:');
+    } else if (this.state.phase === 'direction') {
+      // determine swing side based on click position relative to wall direction
+      const dx = p.x - this.state.hinge.x, dy = p.y - this.state.hinge.y;
+      const wa = this.state.wallAngle;
+      const cross = Math.cos(wa) * dy - Math.sin(wa) * dx;
+      // also check which side of hinge along wall (flip wallAngle if door extends opposite)
+      const along = Math.cos(wa) * dx + Math.sin(wa) * dy;
+      let finalAngle = wa;
+      if (along < 0) finalAngle = wa + Math.PI;
+      const swing = (cross > 0) ? 1 : -1;
+      // re-evaluate cross based on finalAngle if flipped
+      const recross = Math.cos(finalAngle) * dy - Math.sin(finalAngle) * dx;
+      const finalSwing = recross > 0 ? 1 : -1;
+      addEntity({ type: 'door', x: this.state.hinge.x, y: this.state.hinge.y, width: this.state.width, wallAngle: finalAngle, swing: finalSwing, openAngle: Math.PI / 2 });
+      pushHistory();
+      setTool('select');
+    }
+  },
+  onKeyDown(ev) { if (ev.key === 'Escape') setTool('select'); },
+  drawPreview(c) {
+    if (this.state.phase === 'direction' && this.state.hinge) {
+      const to = state.cursor.snap || state.cursor.world;
+      const dx = to.x - this.state.hinge.x, dy = to.y - this.state.hinge.y;
+      const wa = this.state.wallAngle;
+      const along = Math.cos(wa) * dx + Math.sin(wa) * dy;
+      const finalAngle = along < 0 ? wa + Math.PI : wa;
+      const cross = Math.cos(finalAngle) * dy - Math.sin(finalAngle) * dx;
+      const swing = cross > 0 ? 1 : -1;
+      drawDoor({ x: this.state.hinge.x, y: this.state.hinge.y, width: this.state.width, wallAngle: finalAngle, swing, openAngle: Math.PI / 2 }, '#888');
+    }
+  },
+};
+
+function guessWallAngleAt(p) {
+  // find nearest wall and use its segment direction
+  const tolWorld = pxToWorld(40);
+  let best = null, bd = Infinity;
+  for (const e of state.entities.values()) {
+    if (e.type !== 'wall') continue;
+    const layer = state.layers.get(e.layer);
+    if (!layer || !layer.visible) continue;
+    for (let i = 0; i < e.points.length - 1; i++) {
+      const c = G.closestOnSegment(p, e.points[i], e.points[i + 1]);
+      const d = G.dist(p, c);
+      if (d < bd && d < tolWorld) {
+        bd = d;
+        best = { angle: G.angle(e.points[i], e.points[i + 1]) };
+      }
+    }
+  }
+  if (best) return best.angle;
+  // also try lines as fallback
+  for (const e of state.entities.values()) {
+    if (e.type !== 'line') continue;
+    const layer = state.layers.get(e.layer);
+    if (!layer || !layer.visible) continue;
+    const c = G.closestOnSegment(p, { x: e.x1, y: e.y1 }, { x: e.x2, y: e.y2 });
+    const d = G.dist(p, c);
+    if (d < bd && d < tolWorld) {
+      bd = d;
+      best = { angle: G.angle({ x: e.x1, y: e.y1 }, { x: e.x2, y: e.y2 }) };
+    }
+  }
+  return best ? best.angle : 0;
+}
+
+/* ----- WINDOW ----- */
+let lastWindowWidth = 3;
+tools.window = {
+  prompt: 'Specify window first point on wall:',
+  state: { phase: 'p1', p1: null, thickness: 0.5 },
+  onActivate() {
+    const w = parseFloat(prompt('Window width (' + state.units + '):', String(lastWindowWidth)));
+    if (isNaN(w) || w <= 0) { setTool('select'); return; }
+    lastWindowWidth = w;
+    const t = parseFloat(prompt('Wall thickness for this window (' + state.units + '):', String(lastWallThickness)));
+    if (isNaN(t) || t <= 0) { setTool('select'); return; }
+    this.state = { phase: 'p1', p1: null, width: w, thickness: t };
+    setPrompt('Click window start point on wall:');
+    for (const l of state.layers.values()) if (l.name.toLowerCase() === 'windows') { state.activeLayerId = l.id; refreshLayersUI(); break; }
+  },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    if (this.state.phase === 'p1') {
+      this.state.p1 = p;
+      this.state.wallAngle = guessWallAngleAt(p);
+      this.state.phase = 'p2';
+      setPrompt('Click direction along wall (or Enter to use detected angle):');
+    } else if (this.state.phase === 'p2') {
+      const ang = G.angle(this.state.p1, p);
+      addEntity({ type: 'window', x: this.state.p1.x, y: this.state.p1.y, width: this.state.width, wallAngle: ang, thickness: this.state.thickness });
+      pushHistory();
+      setTool('select');
+    }
+  },
+  onKeyDown(ev) {
+    if (ev.key === 'Enter' && this.state.phase === 'p2' && this.state.p1) {
+      addEntity({ type: 'window', x: this.state.p1.x, y: this.state.p1.y, width: this.state.width, wallAngle: this.state.wallAngle, thickness: this.state.thickness });
+      pushHistory();
+      setTool('select');
+    } else if (ev.key === 'Escape') setTool('select');
+  },
+  drawPreview(c) {
+    if (this.state.phase === 'p2' && this.state.p1) {
+      const to = state.cursor.snap || state.cursor.world;
+      const ang = G.angle(this.state.p1, to);
+      drawWindow({ x: this.state.p1.x, y: this.state.p1.y, width: this.state.width, wallAngle: ang, thickness: this.state.thickness }, '#888');
+    }
+  },
+};
+
+/* ----- ROOM ----- */
+function polyArea(pts) {
+  let a = 0;
+  const n = pts.length;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    a += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+  }
+  return Math.abs(a) / 2;
+}
+
+function polyCentroid(pts) {
+  let cx = 0, cy = 0, signedA = 0;
+  const n = pts.length;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const f = pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+    signedA += f;
+    cx += (pts[i].x + pts[j].x) * f;
+    cy += (pts[i].y + pts[j].y) * f;
+  }
+  signedA /= 2;
+  if (Math.abs(signedA) < 1e-9) {
+    let mx = 0, my = 0;
+    for (const p of pts) { mx += p.x; my += p.y; }
+    return { x: mx / n, y: my / n };
+  }
+  return { x: cx / (6 * signedA), y: cy / (6 * signedA) };
+}
+
+function formatArea(a) {
+  if (state.units === 'ft') return Math.round(a) + ' sq ft';
+  if (state.units === 'm') return a.toFixed(2) + ' m²';
+  if (state.units === 'cm') return a.toFixed(0) + ' cm²';
+  if (state.units === 'mm') return a.toFixed(0) + ' mm²';
+  if (state.units === 'in') return a.toFixed(0) + ' in²';
+  return a.toFixed(2) + ' ' + state.units + '²';
+}
+
+function drawRoom(e, color, highlight, hover) {
+  if (!e.boundary || e.boundary.length < 3) return;
+  // floor fill
+  ctx.beginPath();
+  for (let i = 0; i < e.boundary.length; i++) {
+    const sp = w2s(e.boundary[i]);
+    if (i === 0) ctx.moveTo(sp.x, sp.y); else ctx.lineTo(sp.x, sp.y);
+  }
+  ctx.closePath();
+  const fill = e.floorColor || '#dceaff';
+  ctx.fillStyle = highlight ? fill + 'aa' : (hover ? fill + '88' : fill + '55');
+  ctx.fill();
+  if (highlight) {
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+  // labels
+  if (!e.labelPos) return;
+  const lp = w2s(e.labelPos);
+  const T = themeColors();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  // soft pill background behind label
+  ctx.font = '600 14px -apple-system, "Inter", sans-serif';
+  const nameW = ctx.measureText(e.name || 'Room').width;
+  ctx.font = '11px -apple-system, "Inter", sans-serif';
+  const areaText = formatArea(e.area || 0);
+  const areaW = ctx.measureText(areaText).width;
+  const w = Math.max(nameW, areaW) + 16;
+  const h = 36;
+  ctx.fillStyle = T.dimBg + 'cc';
+  ctx.beginPath();
+  if (ctx.roundRect) { ctx.roundRect(lp.x - w / 2, lp.y - h / 2, w, h, 6); ctx.fill(); }
+  else { ctx.fillRect(lp.x - w / 2, lp.y - h / 2, w, h); }
+  // name
+  ctx.fillStyle = T.label;
+  ctx.font = '600 14px -apple-system, "Inter", sans-serif';
+  ctx.fillText(e.name || 'Room', lp.x, lp.y - 7);
+  // area
+  ctx.fillStyle = color;
+  ctx.font = '11px -apple-system, "Inter", sans-serif';
+  ctx.fillText(areaText, lp.x, lp.y + 8);
+  ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+}
+
+function findRoomBoundary(p) {
+  // Phase 1: closed entities (polyline, wall closed) — smallest containing
+  let p1 = null, p1Area = Infinity;
+  for (const e of state.entities.values()) {
+    const layer = state.layers.get(e.layer);
+    if (!layer || !layer.visible) continue;
+    let pts = null;
+    if (e.type === 'polyline' && e.closed) pts = e.points;
+    else if (e.type === 'wall' && e.closed) pts = e.points;
+    if (pts && pts.length >= 3 && G.pointInPoly(p, pts)) {
+      const a = polyArea(pts);
+      if (a > 1e-6 && a < p1Area) { p1Area = a; p1 = pts.map(q => ({ x: q.x, y: q.y })); }
+    }
+  }
+  // Phase 2: graph-based boundary trace (handles separate walls/lines)
+  const p2 = traceRoomBoundary(p);
+  const p2Area = p2 ? polyArea(p2) : Infinity;
+  // pick the smaller (more specific) region
+  if (p2 && p2Area > 1e-6 && p2Area < p1Area) return p2;
+  return p1;
+}
+
+function traceRoomBoundary(clickPoint) {
+  // Collect all line segments from visible walls/lines/polylines
+  const segs = [];
+  for (const e of state.entities.values()) {
+    const layer = state.layers.get(e.layer);
+    if (!layer || !layer.visible) continue;
+    if (e.type === 'line') segs.push([{ x: e.x1, y: e.y1 }, { x: e.x2, y: e.y2 }]);
+    else if (e.type === 'polyline') {
+      for (let i = 0; i < e.points.length - 1; i++) segs.push([{ ...e.points[i] }, { ...e.points[i + 1] }]);
+      if (e.closed) segs.push([{ ...e.points[e.points.length - 1] }, { ...e.points[0] }]);
+    } else if (e.type === 'wall') {
+      for (let i = 0; i < e.points.length - 1; i++) segs.push([{ ...e.points[i] }, { ...e.points[i + 1] }]);
+    }
+  }
+  if (segs.length < 3) return null;
+
+  // Compute pairwise intersections, split segments
+  const splits = segs.map(s => ({ a: s[0], b: s[1], pts: [s[0], s[1]] }));
+  for (let i = 0; i < splits.length; i++) {
+    for (let j = i + 1; j < splits.length; j++) {
+      const ip = G.segSegIntersect(splits[i].a, splits[i].b, splits[j].a, splits[j].b);
+      if (ip) {
+        const np = { x: ip.x, y: ip.y };
+        if (G.dist(np, splits[i].a) > 1e-6 && G.dist(np, splits[i].b) > 1e-6) splits[i].pts.push(np);
+        if (G.dist(np, splits[j].a) > 1e-6 && G.dist(np, splits[j].b) > 1e-6) splits[j].pts.push(np);
+      }
+    }
+  }
+
+  // Build node list with tolerance-based dedup
+  const nodes = [];
+  const TOL = 1e-4;
+  function nodeId(p) {
+    for (let i = 0; i < nodes.length; i++) if (G.dist(nodes[i], p) < TOL) return i;
+    nodes.push({ x: p.x, y: p.y });
+    return nodes.length - 1;
+  }
+  const adj = {}; // node -> [{to, dx, dy}]
+  function addEdge(n1, n2) {
+    if (n1 === n2) return;
+    if (!adj[n1]) adj[n1] = [];
+    if (!adj[n2]) adj[n2] = [];
+    // avoid duplicates
+    if (adj[n1].some(e => e.to === n2)) return;
+    adj[n1].push({ to: n2 });
+    adj[n2].push({ to: n1 });
+  }
+
+  // Sort split points along each segment, dedup, create edges
+  const allEdges = [];
+  for (const s of splits) {
+    const dx = s.b.x - s.a.x, dy = s.b.y - s.a.y;
+    s.pts.sort((u, v) => {
+      const tu = (u.x - s.a.x) * dx + (u.y - s.a.y) * dy;
+      const tv = (v.x - s.a.x) * dx + (v.y - s.a.y) * dy;
+      return tu - tv;
+    });
+    const uniq = [s.pts[0]];
+    for (let i = 1; i < s.pts.length; i++) {
+      if (G.dist(uniq[uniq.length - 1], s.pts[i]) > TOL) uniq.push(s.pts[i]);
+    }
+    for (let i = 0; i < uniq.length - 1; i++) {
+      const id1 = nodeId(uniq[i]);
+      const id2 = nodeId(uniq[i + 1]);
+      if (id1 !== id2) {
+        addEdge(id1, id2);
+        allEdges.push([id1, id2]);
+      }
+    }
+  }
+  if (allEdges.length === 0) return null;
+
+  // Find closest edge to click and which side
+  let closest = null, closestDist = Infinity, side = 0;
+  for (const [a, b] of allEdges) {
+    const A = nodes[a], B = nodes[b];
+    const cp = G.closestOnSegment(clickPoint, A, B);
+    const d = G.dist(clickPoint, cp);
+    if (d < closestDist) {
+      closestDist = d;
+      closest = { a, b };
+      const cross = (B.x - A.x) * (clickPoint.y - A.y) - (B.y - A.y) * (clickPoint.x - A.x);
+      side = cross;
+    }
+  }
+  if (!closest || side === 0) return null;
+
+  // Walk so click is on left (cross > 0). Cross > 0 when going A->B means click is on left of A->B.
+  let curFrom, curTo;
+  if (side > 0) { curFrom = closest.a; curTo = closest.b; }
+  else { curFrom = closest.b; curTo = closest.a; }
+
+  const path = [];
+  const seen = new Set();
+  let safety = nodes.length * 4 + 50;
+
+  while (safety-- > 0) {
+    const key = curFrom + '>' + curTo;
+    if (seen.has(key)) break; // returned to a previously-walked directed edge → cycle closed
+    seen.add(key);
+    path.push(curTo);
+
+    // Pick next edge: leftmost rule = smallest CCW angle from reverse incoming
+    const inAng = Math.atan2(nodes[curTo].y - nodes[curFrom].y, nodes[curTo].x - nodes[curFrom].x);
+    const reverseIn = inAng + Math.PI;
+    let nextNode = null, bestCCW = Infinity;
+    const adjList = adj[curTo] || [];
+    for (const conn of adjList) {
+      if (conn.to === curFrom && adjList.length > 1) continue;
+      const outAng = Math.atan2(nodes[conn.to].y - nodes[curTo].y, nodes[conn.to].x - nodes[curTo].x);
+      let ccw = outAng - reverseIn;
+      while (ccw < 0) ccw += 2 * Math.PI;
+      while (ccw >= 2 * Math.PI) ccw -= 2 * Math.PI;
+      if (ccw < bestCCW) { bestCCW = ccw; nextNode = conn.to; }
+    }
+    if (nextNode === null) return null;
+
+    curFrom = curTo;
+    curTo = nextNode;
+  }
+
+  if (path.length < 3) return null;
+  const polyPts = path.map(i => ({ x: nodes[i].x, y: nodes[i].y }));
+  if (!G.pointInPoly(clickPoint, polyPts)) return null;
+  return polyPts;
+}
+
+let roomCount = 0;
+tools.room = {
+  prompt: 'Click inside a closed area to detect room:',
+  onActivate() {
+    setPrompt('Click inside a closed area to detect room:');
+  },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    const boundary = findRoomBoundary(p);
+    if (!boundary || boundary.length < 3) {
+      logMsg('No closed boundary found here. Make sure walls/lines fully enclose the area.', 'err');
+      return;
+    }
+    // count existing rooms for default name
+    let nRooms = 0;
+    for (const ent of state.entities.values()) if (ent.type === 'room') nRooms++;
+    const name = prompt('Room name:', 'Room ' + (nRooms + 1));
+    if (name === null) return;
+    const labelPos = polyCentroid(boundary);
+    const area = polyArea(boundary);
+    const roomsLayer = findLayerId('Rooms');
+    addEntity({
+      type: 'room',
+      boundary,
+      labelPos,
+      name: name || 'Room',
+      area,
+      floorColor: pickRoomColor(name),
+      layer: roomsLayer,
+    });
+    pushHistory();
+    refreshProperties();
+    logMsg('Created room: ' + (name || 'Room') + ' (' + formatArea(area) + ')', 'info');
+  },
+  onKeyDown(ev) { if (ev.key === 'Escape') setTool('select'); },
+  drawPreview() {},
+};
+
+function pickRoomColor(name) {
+  const palette = {
+    living: '#f0e8d8', bed: '#e1ecf6', bath: '#d8ecf0',
+    kitchen: '#f6e8d8', dining: '#f0d8e1', office: '#e1f0d8',
+    closet: '#ece8e0', hall: '#ececec', garage: '#dadcde',
+  };
+  const lc = (name || '').toLowerCase();
+  for (const k of Object.keys(palette)) if (lc.includes(k)) return palette[k];
+  return '#e7eef9';
+}
+
+/* ============================================================
+   PAN / ZOOM
+   ============================================================ */
+let panState = { active: false, lastX: 0, lastY: 0 };
+function startPan(x, y) { panState = { active: true, lastX: x, lastY: y }; canvas.style.cursor = 'grabbing'; }
+function endPan() { panState.active = false; canvas.style.cursor = 'crosshair'; }
+function doPan(x, y) {
+  const dx = (x - panState.lastX) / state.viewport.scale;
+  const dy = (panState.lastY - y) / state.viewport.scale;
+  state.viewport.x -= dx;
+  state.viewport.y -= dy;
+  panState.lastX = x; panState.lastY = y;
+  render();
+}
+
+function zoomBy(factor, around) {
+  const before = around ? s2w(around) : s2w({ x: CW() / 2, y: CH() / 2 });
+  state.viewport.scale *= factor;
+  state.viewport.scale = Math.max(0.001, Math.min(state.viewport.scale, 1e6));
+  if (around) {
+    const after = s2w(around);
+    state.viewport.x += before.x - after.x;
+    state.viewport.y += before.y - after.y;
+  }
+  document.getElementById('zoom-info').textContent = (state.viewport.scale).toFixed(0) + 'x';
+  render();
+}
+
+function zoomExtents() {
+  if (state.entities.size === 0) {
+    state.viewport.x = 0; state.viewport.y = 0; state.viewport.scale = 20;
+    render(); return;
+  }
+  let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+  for (const e of state.entities.values()) {
+    const bb = Ent.bbox(e);
+    mnx = Math.min(mnx, bb.min.x); mny = Math.min(mny, bb.min.y);
+    mxx = Math.max(mxx, bb.max.x); mxy = Math.max(mxy, bb.max.y);
+  }
+  const w = mxx - mnx, h = mxy - mny;
+  const margin = 1.1;
+  const sx = CW() / (w * margin || 1);
+  const sy = CH() / (h * margin || 1);
+  state.viewport.scale = Math.min(sx, sy);
+  state.viewport.x = (mnx + mxx) / 2;
+  state.viewport.y = (mny + mxy) / 2;
+  document.getElementById('zoom-info').textContent = (state.viewport.scale).toFixed(0) + 'x';
+  render();
+}
+
+/* ============================================================
+   COMMAND LINE
+   ============================================================ */
+const commandAliases = {
+  'l': 'line', 'line': 'line',
+  'pl': 'polyline', 'polyline': 'polyline',
+  'rec': 'rectangle', 'rectangle': 'rectangle',
+  'c': 'circle', 'circle': 'circle',
+  'a': 'arc', 'arc': 'arc',
+  'el': 'ellipse', 'ellipse': 'ellipse',
+  't': 'text', 'text': 'text',
+  'dli': 'dimension', 'dim': 'dimension', 'dimension': 'dimension',
+  'h': 'hatch', 'hatch': 'hatch',
+  'e': 'erase', 'erase': 'erase',
+  'm': 'move', 'move': 'move',
+  'co': 'copy', 'copy': 'copy',
+  'ro': 'rotate', 'rotate': 'rotate',
+  'mi': 'mirror', 'mirror': 'mirror',
+  'sc': 'scale', 'scale': 'scale',
+  'o': 'offset', 'offset': 'offset',
+  'tr': 'trim', 'trim': 'trim',
+  'f': 'fillet', 'fillet': 'fillet',
+  's': 'select', 'select': 'select',
+  'esc': 'select',
+  'w': 'wall', 'wall': 'wall',
+  'd': 'door', 'door': 'door',
+  'win': 'window', 'window': 'window',
+  'r': 'room', 'room': 'room',
+};
+
+function execCommand(cmd) {
+  cmd = cmd.trim().toLowerCase();
+  if (!cmd) return;
+  logMsg('> ' + cmd);
+  if (commandAliases[cmd]) { setTool(commandAliases[cmd]); return; }
+  if (cmd === 'u' || cmd === 'undo') { undo(); return; }
+  if (cmd === 'r' || cmd === 'redo') { redo(); return; }
+  if (cmd === 'ze' || cmd === 'zoomextents') { zoomExtents(); return; }
+  if (cmd === 'all') {
+    for (const id of state.entities.keys()) state.selection.add(id);
+    refreshProperties(); render(); return;
+  }
+  if (cmd === 'clear') {
+    state.entities.clear(); state.selection.clear();
+    pushHistory(); render(); return;
+  }
+  if (cmd.startsWith('layer ')) {
+    const name = cmd.slice(6);
+    for (const l of state.layers.values()) if (l.name.toLowerCase() === name) { state.activeLayerId = l.id; refreshLayersUI(); render(); return; }
+    addLayer(name); refreshLayersUI();
+    return;
+  }
+  logMsg('Unknown command: ' + cmd, 'err');
+}
+
+function logMsg(s, kind = '') {
+  const d = document.getElementById('cmdhistory');
+  const div = document.createElement('div');
+  if (kind) div.className = kind;
+  div.textContent = s;
+  d.appendChild(div);
+  d.scrollTop = d.scrollHeight;
+  while (d.children.length > 100) d.removeChild(d.firstChild);
+}
+
+/* ============================================================
+   UI
+   ============================================================ */
+function refreshLayersUI() {
+  const list = document.getElementById('layers-list');
+  list.innerHTML = '';
+  for (const l of state.layers.values()) {
+    const row = document.createElement('div');
+    row.className = 'layer-row' + (l.id === state.activeLayerId ? ' active' : '');
+    row.innerHTML = `
+      <span class="vis" title="Toggle visibility">${l.visible ? '👁' : '–'}</span>
+      <span class="lock" title="Toggle lock">${l.locked ? '🔒' : '🔓'}</span>
+      <span class="swatch" style="background:${l.color}"></span>
+      <span class="name">${l.name}</span>
+      <span style="opacity:0.5;cursor:pointer" data-act="del" title="Delete">×</span>
+    `;
+    row.onclick = (ev) => {
+      const t = ev.target;
+      if (t.classList.contains('vis')) { l.visible = !l.visible; render(); refreshLayersUI(); }
+      else if (t.classList.contains('lock')) { l.locked = !l.locked; refreshLayersUI(); }
+      else if (t.classList.contains('swatch')) {
+        const c = prompt('Layer color (hex):', l.color);
+        if (c) { l.color = c; render(); refreshLayersUI(); }
+      } else if (t.dataset.act === 'del') {
+        if (confirm('Delete layer "' + l.name + '"? Entities will be moved.')) { deleteLayer(l.id); refreshLayersUI(); render(); }
+      } else {
+        state.activeLayerId = l.id; refreshLayersUI();
+      }
+    };
+    row.ondblclick = (ev) => {
+      if (ev.target.classList.contains('name')) {
+        const newName = prompt('Layer name:', l.name);
+        if (newName) { l.name = newName; refreshLayersUI(); }
+      }
+    };
+    list.appendChild(row);
+  }
+}
+
+function refreshProperties() {
+  const div = document.getElementById('properties');
+  div.innerHTML = '';
+  if (state.selection.size === 0) {
+    div.innerHTML = '<div style="color:#777;font-size:11px">No selection</div>';
+    return;
+  }
+  if (state.selection.size > 1) {
+    div.innerHTML = `<div style="font-size:11px">${state.selection.size} objects selected</div>`;
+    return;
+  }
+  const id = [...state.selection][0];
+  const e = state.entities.get(id);
+  if (!e) return;
+  const addRow = (label, value, onChange) => {
+    const r = document.createElement('div');
+    r.className = 'prop-row';
+    r.innerHTML = `<label>${label}</label>`;
+    const inp = document.createElement('input');
+    inp.value = value;
+    inp.onchange = () => onChange(inp.value);
+    r.appendChild(inp);
+    div.appendChild(r);
+  };
+  addRow('Type', e.type, () => {});
+  // layer dropdown
+  const r = document.createElement('div'); r.className = 'prop-row';
+  r.innerHTML = `<label>Layer</label>`;
+  const sel = document.createElement('select');
+  for (const l of state.layers.values()) {
+    const o = document.createElement('option'); o.value = l.id; o.textContent = l.name;
+    if (e.layer === l.id) o.selected = true;
+    sel.appendChild(o);
+  }
+  sel.onchange = () => { e.layer = sel.value; pushHistory(); render(); };
+  r.appendChild(sel); div.appendChild(r);
+
+  if (e.type === 'line') {
+    addRow('X1', e.x1.toFixed(4), v => { e.x1 = parseFloat(v); pushHistory(); render(); });
+    addRow('Y1', e.y1.toFixed(4), v => { e.y1 = parseFloat(v); pushHistory(); render(); });
+    addRow('X2', e.x2.toFixed(4), v => { e.x2 = parseFloat(v); pushHistory(); render(); });
+    addRow('Y2', e.y2.toFixed(4), v => { e.y2 = parseFloat(v); pushHistory(); render(); });
+    addRow('Length', G.dist({ x: e.x1, y: e.y1 }, { x: e.x2, y: e.y2 }).toFixed(4), () => {});
+  } else if (e.type === 'circle') {
+    addRow('CX', e.cx.toFixed(4), v => { e.cx = parseFloat(v); pushHistory(); render(); });
+    addRow('CY', e.cy.toFixed(4), v => { e.cy = parseFloat(v); pushHistory(); render(); });
+    addRow('Radius', e.r.toFixed(4), v => { e.r = parseFloat(v); pushHistory(); render(); });
+    addRow('Diameter', (e.r * 2).toFixed(4), v => { e.r = parseFloat(v) / 2; pushHistory(); render(); });
+    addRow('Area', (Math.PI * e.r * e.r).toFixed(4), () => {});
+  } else if (e.type === 'arc') {
+    addRow('CX', e.cx.toFixed(4), v => { e.cx = parseFloat(v); pushHistory(); render(); });
+    addRow('CY', e.cy.toFixed(4), v => { e.cy = parseFloat(v); pushHistory(); render(); });
+    addRow('Radius', e.r.toFixed(4), v => { e.r = parseFloat(v); pushHistory(); render(); });
+    addRow('Start °', (e.startAngle * 180 / Math.PI).toFixed(2), v => { e.startAngle = parseFloat(v) * Math.PI / 180; pushHistory(); render(); });
+    addRow('End °', (e.endAngle * 180 / Math.PI).toFixed(2), v => { e.endAngle = parseFloat(v) * Math.PI / 180; pushHistory(); render(); });
+  } else if (e.type === 'polyline') {
+    addRow('Points', e.points.length, () => {});
+    addRow('Closed', e.closed ? 'yes' : 'no', v => { e.closed = (v === 'yes' || v === 'true' || v === '1'); pushHistory(); render(); });
+  } else if (e.type === 'text') {
+    addRow('X', e.x.toFixed(4), v => { e.x = parseFloat(v); pushHistory(); render(); });
+    addRow('Y', e.y.toFixed(4), v => { e.y = parseFloat(v); pushHistory(); render(); });
+    addRow('Text', e.text, v => { e.text = v; pushHistory(); render(); });
+    addRow('Height', e.height.toFixed(4), v => { e.height = parseFloat(v); pushHistory(); render(); });
+    addRow('Rotation', ((e.rotation || 0) * 180 / Math.PI).toFixed(2), v => { e.rotation = parseFloat(v) * Math.PI / 180; pushHistory(); render(); });
+  } else if (e.type === 'wall') {
+    addRow('Vertices', e.points.length, () => {});
+    addRow('Thickness', e.thickness.toFixed(4), v => { e.thickness = parseFloat(v); pushHistory(); render(); });
+    let total = 0;
+    for (let i = 0; i < e.points.length - 1; i++) total += G.dist(e.points[i], e.points[i + 1]);
+    addRow('Length', total.toFixed(4), () => {});
+  } else if (e.type === 'door') {
+    addRow('X', e.x.toFixed(4), v => { e.x = parseFloat(v); pushHistory(); render(); });
+    addRow('Y', e.y.toFixed(4), v => { e.y = parseFloat(v); pushHistory(); render(); });
+    addRow('Width', e.width.toFixed(4), v => { e.width = parseFloat(v); pushHistory(); render(); });
+    addRow('Wall ang°', (e.wallAngle * 180 / Math.PI).toFixed(2), v => { e.wallAngle = parseFloat(v) * Math.PI / 180; pushHistory(); render(); });
+    addRow('Swing', e.swing > 0 ? 'left' : 'right', v => { e.swing = (v.toLowerCase() === 'left') ? 1 : -1; pushHistory(); render(); });
+    addRow('Open °', ((e.openAngle || Math.PI / 2) * 180 / Math.PI).toFixed(0), v => { e.openAngle = parseFloat(v) * Math.PI / 180; pushHistory(); render(); });
+  } else if (e.type === 'window') {
+    addRow('X', e.x.toFixed(4), v => { e.x = parseFloat(v); pushHistory(); render(); });
+    addRow('Y', e.y.toFixed(4), v => { e.y = parseFloat(v); pushHistory(); render(); });
+    addRow('Width', e.width.toFixed(4), v => { e.width = parseFloat(v); pushHistory(); render(); });
+    addRow('Wall ang°', (e.wallAngle * 180 / Math.PI).toFixed(2), v => { e.wallAngle = parseFloat(v) * Math.PI / 180; pushHistory(); render(); });
+    addRow('Thickness', (e.thickness || 0.5).toFixed(4), v => { e.thickness = parseFloat(v); pushHistory(); render(); });
+  } else if (e.type === 'room') {
+    addRow('Name', e.name || '', v => { e.name = v; pushHistory(); render(); });
+    addRow('Area', formatArea(e.area || 0), () => {});
+    addRow('Vertices', e.boundary.length, () => {});
+    // floor color row
+    const r2 = document.createElement('div'); r2.className = 'prop-row';
+    r2.innerHTML = `<label>Floor</label>`;
+    const sw = document.createElement('input');
+    sw.type = 'color'; sw.value = e.floorColor || '#dceaff';
+    sw.style.flex = '1'; sw.style.height = '24px'; sw.style.padding = '0';
+    sw.oninput = () => { e.floorColor = sw.value; render(); };
+    sw.onchange = () => { pushHistory(); };
+    r2.appendChild(sw); div.appendChild(r2);
+    // recompute button
+    const r3 = document.createElement('div'); r3.className = 'prop-row';
+    r3.innerHTML = `<label></label>`;
+    const btn = document.createElement('button');
+    btn.textContent = 'Recompute area';
+    btn.style.cssText = 'flex:1; background: var(--panel-2); border: 1px solid var(--border); color: var(--ink); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;';
+    btn.onclick = () => {
+      e.area = polyArea(e.boundary);
+      e.labelPos = polyCentroid(e.boundary);
+      pushHistory(); render(); refreshProperties();
+    };
+    r3.appendChild(btn); div.appendChild(r3);
+  }
+}
+
+function refreshSnapOptions() {
+  const div = document.getElementById('snap-options');
+  div.innerHTML = '';
+  for (const k of Object.keys(state.snapTypes)) {
+    const id = 'sn-' + k;
+    const row = document.createElement('div');
+    row.style.fontSize = '11px';
+    row.innerHTML = `<label><input type="checkbox" id="${id}" ${state.snapTypes[k] ? 'checked' : ''}> ${k}</label>`;
+    div.appendChild(row);
+    setTimeout(() => {
+      document.getElementById(id).onchange = (e) => { state.snapTypes[k] = e.target.checked; render(); };
+    }, 0);
+  }
+}
+
+function updateStatus() {
+  document.getElementById('entity-count').textContent = state.entities.size + ' entities';
+  document.getElementById('zoom-info').textContent = state.viewport.scale.toFixed(0) + 'x';
+  document.getElementById('t-grid').classList.toggle('on', state.grid.enabled);
+  document.getElementById('t-ortho').classList.toggle('on', state.ortho);
+  document.getElementById('t-snap').classList.toggle('on', state.snapEnabled);
+  document.getElementById('t-polar').classList.toggle('on', state.polar);
+  let nRooms = 0, totalArea = 0;
+  for (const e of state.entities.values()) if (e.type === 'room') { nRooms++; totalArea += (e.area || 0); }
+  document.getElementById('rooms-info').textContent = nRooms > 0 ? (nRooms + ' rooms · ' + formatArea(totalArea)) : '';
+}
+
+/* ============================================================
+   FILE IO
+   ============================================================ */
+function saveJSON() {
+  const data = {
+    version: 1,
+    entities: [...state.entities.values()],
+    layers: [...state.layers.values()],
+    activeLayerId: state.activeLayerId,
+    units: state.units,
+    grid: state.grid,
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'drawing.json';
+  a.click();
+  state.isDirty = false;
+  logMsg('Saved drawing.json', 'info');
+}
+
+function openJSON(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      state.entities.clear();
+      state.layers.clear();
+      for (const l of data.layers) state.layers.set(l.id, l);
+      for (const e of data.entities) state.entities.set(e.id, e);
+      state.activeLayerId = data.activeLayerId;
+      if (data.grid) state.grid = data.grid;
+      if (data.units) state.units = data.units;
+      // bump nextId past existing ids
+      for (const id of state.entities.keys()) {
+        const n = parseInt(id.replace(/[^0-9]/g, ''));
+        if (!isNaN(n) && n >= nextId) nextId = n + 1;
+      }
+      pushHistory();
+      refreshLayersUI();
+      refreshProperties();
+      zoomExtents();
+      logMsg('Loaded ' + data.entities.length + ' entities', 'info');
+    } catch (err) {
+      logMsg('Error loading file: ' + err.message, 'err');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function exportSVG() {
+  let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+  if (state.entities.size === 0) { logMsg('Nothing to export', 'err'); return; }
+  for (const e of state.entities.values()) {
+    const bb = Ent.bbox(e);
+    mnx = Math.min(mnx, bb.min.x); mny = Math.min(mny, bb.min.y);
+    mxx = Math.max(mxx, bb.max.x); mxy = Math.max(mxy, bb.max.y);
+  }
+  const m = 1;
+  const W = mxx - mnx + 2 * m, H = mxy - mny + 2 * m;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${mnx - m} ${-(mxy + m)} ${W} ${H}" width="${W * 50}" height="${H * 50}">`;
+  for (const e of state.entities.values()) {
+    const layer = state.layers.get(e.layer);
+    if (!layer || !layer.visible) continue;
+    const c = layer.color;
+    if (e.type === 'line') svg += `<line x1="${e.x1}" y1="${-e.y1}" x2="${e.x2}" y2="${-e.y2}" stroke="${c}" stroke-width="0.05" fill="none"/>`;
+    else if (e.type === 'circle') svg += `<circle cx="${e.cx}" cy="${-e.cy}" r="${e.r}" stroke="${c}" stroke-width="0.05" fill="none"/>`;
+    else if (e.type === 'polyline') {
+      const pts = e.points.map(p => `${p.x},${-p.y}`).join(' ');
+      svg += `<${e.closed ? 'polygon' : 'polyline'} points="${pts}" stroke="${c}" stroke-width="0.05" fill="none"/>`;
+    } else if (e.type === 'arc') {
+      const x1 = e.cx + e.r * Math.cos(e.startAngle), y1 = -(e.cy + e.r * Math.sin(e.startAngle));
+      const x2 = e.cx + e.r * Math.cos(e.endAngle), y2 = -(e.cy + e.r * Math.sin(e.endAngle));
+      const sweep = (e.endAngle - e.startAngle) > Math.PI ? 1 : 0;
+      svg += `<path d="M ${x1} ${y1} A ${e.r} ${e.r} 0 ${sweep} 0 ${x2} ${y2}" stroke="${c}" stroke-width="0.05" fill="none"/>`;
+    } else if (e.type === 'text') {
+      svg += `<text x="${e.x}" y="${-e.y}" font-size="${e.height}" fill="${c}">${e.text}</text>`;
+    } else if (e.type === 'ellipse') {
+      svg += `<ellipse cx="${e.cx}" cy="${-e.cy}" rx="${e.rx}" ry="${e.ry}" stroke="${c}" stroke-width="0.05" fill="none"/>`;
+    }
+  }
+  svg += '</svg>';
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'drawing.svg';
+  a.click();
+  logMsg('Exported drawing.svg', 'info');
+}
+
+function exportPNG() {
+  const link = document.createElement('a');
+  link.download = 'drawing.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  logMsg('Exported drawing.png', 'info');
+}
+
+/* ============================================================
+   EVENT HANDLING
+   ============================================================ */
+function setupEvents() {
+  canvas.addEventListener('mousemove', (ev) => {
+    const r = canvas.getBoundingClientRect();
+    const sx = ev.clientX - r.left, sy = ev.clientY - r.top;
+    state.cursor.screen = { x: sx, y: sy };
+    state.cursor.world = s2w({ x: sx, y: sy });
+    computeTracking(state.cursor.world);
+    state.cursor.snap = findSnap(state.cursor.world);
+    // hover detection (only when select tool, not panning, no snap target)
+    if (!panState.active && activeToolName === 'select' && !selectBox.active) {
+      state.cursor.hoverId = selectAt(state.cursor.world);
+    } else {
+      state.cursor.hoverId = null;
+    }
+    document.getElementById('coords').textContent =
+      state.cursor.world.x.toFixed(4) + ', ' + state.cursor.world.y.toFixed(4);
+    if (panState.active) doPan(sx, sy);
+    else if (state.activeTool && state.activeTool.onMouseMove) state.activeTool.onMouseMove(state.cursor.world, state.cursor.screen, ev);
+    render();
+  });
+
+  canvas.addEventListener('mousedown', (ev) => {
+    canvas.focus();
+    const r = canvas.getBoundingClientRect();
+    const sx = ev.clientX - r.left, sy = ev.clientY - r.top;
+    if (ev.button === 1 || (ev.button === 2)) {
+      startPan(sx, sy);
+      ev.preventDefault();
+      return;
+    }
+    if (state.activeTool && state.activeTool.onMouseDown) state.activeTool.onMouseDown(state.cursor.world, state.cursor.screen, ev);
+    render();
+  });
+
+  canvas.addEventListener('mouseup', (ev) => {
+    if (panState.active) { endPan(); return; }
+    if (state.activeTool && state.activeTool.onMouseUp) state.activeTool.onMouseUp(state.cursor.world, state.cursor.screen, ev);
+    render();
+  });
+
+  canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
+
+  canvas.addEventListener('wheel', (ev) => {
+    ev.preventDefault();
+    const r = canvas.getBoundingClientRect();
+    const around = { x: ev.clientX - r.left, y: ev.clientY - r.top };
+    const factor = ev.deltaY > 0 ? 1 / 1.15 : 1.15;
+    zoomBy(factor, around);
+  }, { passive: false });
+
+  document.addEventListener('keydown', (ev) => {
+    if (document.activeElement === document.getElementById('cmd-input')) return;
+
+    // function keys / toggles
+    if (ev.key === 'F3') { ev.preventDefault(); state.snapEnabled = !state.snapEnabled; updateStatus(); render(); return; }
+    if (ev.key === 'F7') { ev.preventDefault(); state.grid.enabled = !state.grid.enabled; updateStatus(); render(); return; }
+    if (ev.key === 'F8') { ev.preventDefault(); state.ortho = !state.ortho; if (state.ortho) state.polar = false; updateStatus(); render(); return; }
+    if (ev.key === 'F10') { ev.preventDefault(); state.polar = !state.polar; if (state.polar) state.ortho = false; updateStatus(); render(); return; }
+
+    if (ev.ctrlKey || ev.metaKey) {
+      if (ev.key === 'z') { ev.preventDefault(); undo(); return; }
+      if (ev.key === 'y' || (ev.key === 'z' && ev.shiftKey)) { ev.preventDefault(); redo(); return; }
+      if (ev.key === 's') { ev.preventDefault(); saveJSON(); return; }
+      if (ev.key === 'o') { ev.preventDefault(); document.getElementById('file-input').click(); return; }
+      if (ev.key === 'a') {
+        ev.preventDefault();
+        for (const id of state.entities.keys()) state.selection.add(id);
+        refreshProperties(); render(); return;
+      }
+      if (ev.key === 'c') { ev.preventDefault(); copySelection(); return; }
+      if (ev.key === 'v') { ev.preventDefault(); pasteClipboard(); return; }
+    }
+
+    if (ev.key === 'Escape') {
+      if (state.activeTool && state.activeTool.onKeyDown) state.activeTool.onKeyDown(ev);
+      else { state.selection.clear(); refreshProperties(); render(); }
+      return;
+    }
+    if (state.activeTool && state.activeTool.onKeyDown) state.activeTool.onKeyDown(ev);
+    if (ev.key === 'Delete' || ev.key === 'Backspace') {
+      if (state.selection.size > 0) {
+        deleteEntities([...state.selection]);
+        pushHistory();
+        render();
+      }
+    }
+  });
+}
+
+function copySelection() {
+  state.clipboard = [];
+  for (const id of state.selection) {
+    const e = state.entities.get(id);
+    if (e) state.clipboard.push(JSON.parse(JSON.stringify(e)));
+  }
+  logMsg('Copied ' + state.clipboard.length + ' object(s)', 'info');
+}
+function pasteClipboard() {
+  if (state.clipboard.length === 0) return;
+  state.selection.clear();
+  for (const e of state.clipboard) {
+    const cp = JSON.parse(JSON.stringify(e));
+    cp.id = newId();
+    Ent.transform(cp, (p) => ({ x: p.x + 1, y: p.y + 1 }));
+    state.entities.set(cp.id, cp);
+    state.selection.add(cp.id);
+  }
+  pushHistory();
+  refreshProperties();
+  render();
+}
+
+/* ============================================================
+   HELP OVERLAY
+   ============================================================ */
+function buildHelp() {
+  const div = document.getElementById('help-overlay');
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">Quick Reference</h3><span style="cursor:pointer;color:#888" onclick="document.getElementById('help-overlay').style.display='none'">✕</span></div>
+    <h3>Architect tools</h3>
+    <table>
+      <tr><td><code>W</code></td><td>Wall (with thickness, mitered corners)</td></tr>
+      <tr><td><code>D</code></td><td>Door (click hinge, then swing direction)</td></tr>
+      <tr><td><code>WIN</code></td><td>Window (placed on wall)</td></tr>
+      <tr><td><code>R</code></td><td>Room (click inside enclosed area → name + area)</td></tr>
+    </table>
+    <h3>Drawing</h3>
+    <table>
+      <tr><td><code>L</code></td><td>Line</td></tr>
+      <tr><td><code>PL</code></td><td>Polyline</td></tr>
+      <tr><td><code>REC</code></td><td>Rectangle</td></tr>
+      <tr><td><code>C</code></td><td>Circle</td></tr>
+      <tr><td><code>A</code></td><td>Arc (3-point)</td></tr>
+      <tr><td><code>EL</code></td><td>Ellipse</td></tr>
+      <tr><td><code>T</code></td><td>Text</td></tr>
+      <tr><td><code>DLI</code></td><td>Linear dimension</td></tr>
+      <tr><td><code>H</code></td><td>Hatch</td></tr>
+    </table>
+    <h3>Modify</h3>
+    <table>
+      <tr><td><code>E</code></td><td>Erase</td></tr>
+      <tr><td><code>M</code></td><td>Move</td></tr>
+      <tr><td><code>CO</code></td><td>Copy</td></tr>
+      <tr><td><code>RO</code></td><td>Rotate</td></tr>
+      <tr><td><code>MI</code></td><td>Mirror</td></tr>
+      <tr><td><code>SC</code></td><td>Scale</td></tr>
+      <tr><td><code>O</code></td><td>Offset</td></tr>
+      <tr><td><code>TR</code></td><td>Trim</td></tr>
+      <tr><td><code>F</code></td><td>Fillet (corner radius)</td></tr>
+    </table>
+    <h3>View</h3>
+    <table>
+      <tr><td>Wheel</td><td>Zoom</td></tr>
+      <tr><td>Right-click drag</td><td>Pan</td></tr>
+      <tr><td>Middle-click drag</td><td>Pan</td></tr>
+      <tr><td><code>ZE</code></td><td>Zoom extents</td></tr>
+    </table>
+    <h3>Toggles</h3>
+    <table>
+      <tr><td><code>F3</code></td><td>Object snap on/off</td></tr>
+      <tr><td><code>F7</code></td><td>Grid on/off</td></tr>
+      <tr><td><code>F8</code></td><td>Ortho on/off</td></tr>
+      <tr><td><code>F10</code></td><td>Polar tracking</td></tr>
+    </table>
+    <h3>File</h3>
+    <table>
+      <tr><td><code>Ctrl+S</code></td><td>Save JSON</td></tr>
+      <tr><td><code>Ctrl+O</code></td><td>Open JSON</td></tr>
+      <tr><td><code>Ctrl+Z / Y</code></td><td>Undo / Redo</td></tr>
+      <tr><td><code>Ctrl+A</code></td><td>Select all</td></tr>
+      <tr><td><code>Ctrl+C / V</code></td><td>Copy / Paste</td></tr>
+      <tr><td><code>Delete</code></td><td>Erase selection</td></tr>
+    </table>
+    <h3>Snap types</h3>
+    <p style="font-size:11px;color:#aaa">Endpoint, Midpoint, Center, Quadrant, Intersection, Perpendicular, Grid, Nearest. Toggle individual snaps in the right panel.</p>
+    <h3>Tips</h3>
+    <p style="font-size:11px;color:#aaa">Type commands directly in the bottom command bar. Ortho constrains lines to 0/90°. Selection: click for single, drag left-to-right for window (full enclose), drag right-to-left for crossing (any touch).</p>
+  `;
+}
+
+/* ============================================================
+   COMPONENT LIBRARY
+   ============================================================ */
+const components = [
+  {
+    name: 'bed', label: 'Bed',
+    svg: '<rect x="6" y="6" width="24" height="28" fill="none" stroke="currentColor" stroke-width="1"/><rect x="9" y="9" width="18" height="6" fill="none" stroke="currentColor" stroke-width="1"/>',
+    entities: () => [
+      { type: 'polyline', closed: true, points: [{ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 5, y: 6.67 }, { x: 0, y: 6.67 }] },
+      { type: 'polyline', closed: true, points: [{ x: 0.5, y: 5.3 }, { x: 4.5, y: 5.3 }, { x: 4.5, y: 6.3 }, { x: 0.5, y: 6.3 }] },
+      { type: 'line', x1: 1, y1: 5.5, x2: 2.3, y2: 6.1 },
+      { type: 'line', x1: 2.7, y1: 5.5, x2: 4, y2: 6.1 },
+    ],
+  },
+  {
+    name: 'sofa', label: 'Sofa',
+    svg: '<rect x="4" y="14" width="32" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="4" y="10" width="32" height="6" rx="1" fill="none" stroke="currentColor" stroke-width="1"/>',
+    entities: () => [
+      { type: 'polyline', closed: true, points: [{ x: 0, y: 0 }, { x: 7, y: 0 }, { x: 7, y: 3 }, { x: 0, y: 3 }] },
+      { type: 'polyline', closed: true, points: [{ x: 0.3, y: 2 }, { x: 6.7, y: 2 }, { x: 6.7, y: 2.8 }, { x: 0.3, y: 2.8 }] },
+      { type: 'line', x1: 2.33, y1: 0.2, x2: 2.33, y2: 1.9 },
+      { type: 'line', x1: 4.67, y1: 0.2, x2: 4.67, y2: 1.9 },
+    ],
+  },
+  {
+    name: 'table_round', label: 'Round Table',
+    svg: '<circle cx="20" cy="20" r="13" fill="none" stroke="currentColor" stroke-width="1"/><circle cx="20" cy="20" r="2" fill="currentColor" opacity="0.4"/>',
+    entities: () => [
+      { type: 'circle', cx: 0, cy: 0, r: 2 },
+      { type: 'circle', cx: 0, cy: 0, r: 0.15 },
+    ],
+  },
+  {
+    name: 'table_rect', label: 'Table',
+    svg: '<rect x="8" y="12" width="24" height="16" fill="none" stroke="currentColor" stroke-width="1"/>',
+    entities: () => [
+      { type: 'polyline', closed: true, points: [{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 4, y: 2.67 }, { x: 0, y: 2.67 }] },
+    ],
+  },
+  {
+    name: 'chair', label: 'Chair',
+    svg: '<rect x="14" y="14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1"/><line x1="14" y1="12" x2="26" y2="12" stroke="currentColor" stroke-width="1.4"/>',
+    entities: () => [
+      { type: 'polyline', closed: true, points: [{ x: 0, y: 0 }, { x: 1.5, y: 0 }, { x: 1.5, y: 1.5 }, { x: 0, y: 1.5 }] },
+      { type: 'line', x1: -0.1, y1: 1.5, x2: 1.6, y2: 1.5 },
+    ],
+  },
+  {
+    name: 'toilet', label: 'Toilet',
+    svg: '<rect x="14" y="6" width="12" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><ellipse cx="20" cy="24" rx="7" ry="9" fill="none" stroke="currentColor" stroke-width="1"/>',
+    entities: () => [
+      { type: 'polyline', closed: true, points: [{ x: -0.7, y: 0 }, { x: 0.7, y: 0 }, { x: 0.7, y: 1.0 }, { x: -0.7, y: 1.0 }] },
+      { type: 'ellipse', cx: 0, cy: 1.9, rx: 0.8, ry: 1.0, rotation: 0 },
+    ],
+  },
+  {
+    name: 'sink', label: 'Sink',
+    svg: '<rect x="6" y="10" width="28" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><circle cx="12" cy="20" r="1.5" fill="currentColor" opacity="0.5"/>',
+    entities: () => [
+      { type: 'polyline', closed: true, points: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 1.67 }, { x: 0, y: 1.67 }] },
+      { type: 'circle', cx: 0.4, cy: 0.83, r: 0.12 },
+    ],
+  },
+  {
+    name: 'bathtub', label: 'Bathtub',
+    svg: '<rect x="4" y="12" width="32" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1"/><rect x="8" y="16" width="24" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="0.7"/>',
+    entities: () => [
+      { type: 'polyline', closed: true, points: [{ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 5, y: 2.67 }, { x: 0, y: 2.67 }] },
+      { type: 'polyline', closed: true, points: [{ x: 0.5, y: 0.5 }, { x: 4.5, y: 0.5 }, { x: 4.5, y: 2.17 }, { x: 0.5, y: 2.17 }] },
+    ],
+  },
+  {
+    name: 'stairs', label: 'Stairs',
+    svg: '<rect x="6" y="6" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1"/><line x1="6" y1="13" x2="34" y2="13" stroke="currentColor"/><line x1="6" y1="20" x2="34" y2="20" stroke="currentColor"/><line x1="6" y1="27" x2="34" y2="27" stroke="currentColor"/>',
+    entities: () => {
+      const out = [{ type: 'polyline', closed: true, points: [{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 4, y: 9 }, { x: 0, y: 9 }] }];
+      for (let i = 1; i < 12; i++) out.push({ type: 'line', x1: 0, y1: i * 0.75, x2: 4, y2: i * 0.75 });
+      return out;
+    },
+  },
+  {
+    name: 'tree', label: 'Tree',
+    svg: '<circle cx="20" cy="20" r="13" fill="none" stroke="currentColor" stroke-width="1"/><line x1="11" y1="11" x2="29" y2="29" stroke="currentColor" stroke-width="0.7"/><line x1="29" y1="11" x2="11" y2="29" stroke="currentColor" stroke-width="0.7"/>',
+    entities: () => [
+      { type: 'circle', cx: 0, cy: 0, r: 2.5 },
+      { type: 'line', x1: -1.7, y1: -1.7, x2: 1.7, y2: 1.7 },
+      { type: 'line', x1: -1.7, y1: 1.7, x2: 1.7, y2: -1.7 },
+    ],
+  },
+  {
+    name: 'car', label: 'Car',
+    svg: '<rect x="4" y="10" width="32" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="1"/><rect x="9" y="13" width="22" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="0.7"/>',
+    entities: () => [
+      { type: 'polyline', closed: true, points: [{ x: 0, y: 0 }, { x: 16, y: 0 }, { x: 16, y: 6 }, { x: 0, y: 6 }] },
+      { type: 'polyline', closed: true, points: [{ x: 2, y: 1 }, { x: 14, y: 1 }, { x: 14, y: 5 }, { x: 2, y: 5 }] },
+    ],
+  },
+];
+
+const componentDescriptions = {
+  bed: 'Queen-size bed in plan view (5\' × 6\'8"). Pillow detail at the head.',
+  sofa: 'Three-seat sofa with backrest and cushion divisions (7\' × 3\').',
+  table_round: 'Round table, 4\' diameter — typical small dining or conference.',
+  table_rect: 'Rectangular table, 4\' × 2\'8" — typical dining or workdesk.',
+  chair: 'Single chair with back indication (1\'6" square).',
+  toilet: 'Standard toilet — tank rectangle plus oval bowl.',
+  sink: 'Vanity sink, 2\' × 1\'8" with drain marker.',
+  bathtub: 'Standard bathtub, 5\' × 2\'8".',
+  stairs: 'Stairs with treads, 4\' wide × 9\' run. Edit count after placing.',
+  tree: 'Tree symbol in plan, ~5\' canopy. Place in landscape areas.',
+  car: 'Parking-stall car, 16\' × 6\'.',
+};
+
+function refreshComponentsUI() {
+  const list = document.getElementById('components-list');
+  list.innerHTML = '<div class="components-grid"></div>';
+  const grid = list.querySelector('.components-grid');
+  for (const c of components) {
+    const el = document.createElement('div');
+    el.className = 'comp';
+    el.innerHTML = `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" stroke="currentColor">${c.svg}</svg><div class="label">${c.label}</div>`;
+    el.dataset.ttName = c.label;
+    el.dataset.ttDesc = (componentDescriptions[c.name] || 'Architectural symbol.') + ' Click, then click on canvas to place; click again to set rotation.';
+    el.onclick = () => setTool('insertComponent', { component: c });
+    grid.appendChild(el);
+    bindTooltip(el);
+  }
+}
+
+tools.insertComponent = {
+  prompt: 'Specify insertion point:',
+  state: { phase: 'pos', pos: null },
+  onActivate(opts) {
+    this.state = { phase: 'pos', pos: null, component: opts && opts.component };
+    setPrompt('Click insertion point for ' + (this.state.component ? this.state.component.label : 'component') + ':');
+  },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    const p = state.cursor.snap || world;
+    if (this.state.phase === 'pos') {
+      this.state.pos = p;
+      this.state.phase = 'rot';
+      setPrompt('Specify rotation (or click to use 0°):');
+    } else if (this.state.phase === 'rot') {
+      const ang = G.angle(this.state.pos, p);
+      placeComponent(this.state.component, this.state.pos, ang);
+      pushHistory();
+      setTool('select');
+    }
+  },
+  onKeyDown(ev) {
+    if (ev.key === 'Enter' && this.state.phase === 'rot' && this.state.pos) {
+      placeComponent(this.state.component, this.state.pos, 0);
+      pushHistory();
+      setTool('select');
+    } else if (ev.key === 'Escape') setTool('select');
+  },
+  drawPreview(c) {
+    if (!this.state.component) return;
+    const T = themeColors();
+    if (this.state.phase === 'pos') {
+      const at = state.cursor.snap || state.cursor.world;
+      drawComponentGhost(this.state.component, at, 0, T.preview);
+    } else if (this.state.phase === 'rot' && this.state.pos) {
+      const to = state.cursor.snap || state.cursor.world;
+      const ang = G.angle(this.state.pos, to);
+      drawComponentGhost(this.state.component, this.state.pos, ang, T.preview);
+    }
+  },
+};
+
+function placeComponent(comp, at, ang) {
+  if (!comp) return;
+  const ents = comp.entities();
+  const targetLayer = (() => {
+    if (comp.name === 'tree') return findLayerId('Furniture');
+    if (['bed', 'sofa', 'table_round', 'table_rect', 'chair', 'stairs', 'car'].includes(comp.name)) return findLayerId('Furniture');
+    if (['toilet', 'sink', 'bathtub'].includes(comp.name)) return findLayerId('Furniture');
+    return state.activeLayerId;
+  })();
+  for (const e of ents) {
+    const cp = JSON.parse(JSON.stringify(e));
+    Ent.transform(cp, (p) => {
+      const r = G.rot(p, { x: 0, y: 0 }, ang);
+      return { x: r.x + at.x, y: r.y + at.y };
+    });
+    if (cp.type === 'ellipse') cp.rotation = (cp.rotation || 0) + ang;
+    cp.layer = targetLayer;
+    addEntity(cp);
+  }
+}
+
+function findLayerId(name) {
+  for (const l of state.layers.values()) if (l.name.toLowerCase() === name.toLowerCase()) return l.id;
+  return state.activeLayerId;
+}
+
+function drawComponentGhost(comp, at, ang, color) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.globalAlpha = 0.7;
+  for (const e of comp.entities()) {
+    const cp = JSON.parse(JSON.stringify(e));
+    Ent.transform(cp, (p) => {
+      const r = G.rot(p, { x: 0, y: 0 }, ang);
+      return { x: r.x + at.x, y: r.y + at.y };
+    });
+    drawEntityGhost(cp);
+  }
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+/* ============================================================
+   TOOLTIPS
+   ============================================================ */
+let tooltipEl = null;
+let tooltipTimer = null;
+let tooltipCurrent = null;
+const TOOLTIP_DELAY = 350;
+
+function showTooltip(el) {
+  if (!tooltipEl) tooltipEl = document.getElementById('tooltip');
+  const name = el.dataset.ttName;
+  if (!name) return;
+  const desc = el.dataset.ttDesc || '';
+  const key = el.dataset.ttKey || '';
+  tooltipEl.innerHTML =
+    `<div class="tt-head"><span class="tt-name">${escapeHtml(name)}</span>${key ? `<span class="tt-key">${escapeHtml(key)}</span>` : ''}</div>` +
+    (desc ? `<div class="tt-desc">${escapeHtml(desc)}</div>` : '');
+  tooltipEl.className = '';
+  tooltipEl.classList.add('arrow-left');
+  tooltipEl.style.left = '-9999px'; tooltipEl.style.top = '-9999px';
+  tooltipEl.classList.add('show');
+  // measure then position
+  requestAnimationFrame(() => {
+    const r = el.getBoundingClientRect();
+    const ttr = tooltipEl.getBoundingClientRect();
+    let placement = 'left'; // tooltip arrow points left → tooltip is right of element
+    let x = r.right + 10;
+    let y = r.top + r.height / 2 - ttr.height / 2;
+    // if no room on right, flip
+    if (x + ttr.width > window.innerWidth - 8) {
+      placement = 'right'; // tooltip is left of element... but we don't have arrow-right, so use bottom
+      x = r.left - ttr.width - 10;
+    }
+    // keep on screen vertically
+    if (y < 8) y = 8;
+    if (y + ttr.height > window.innerHeight - 8) y = window.innerHeight - ttr.height - 8;
+    // for status bar (arrow-bottom or arrow-top) — detect by element being near bottom
+    if (r.top > window.innerHeight - 60) {
+      placement = 'bottom';
+      tooltipEl.className = 'show arrow-bottom';
+      x = r.left;
+      y = r.top - ttr.height - 10;
+      if (x + ttr.width > window.innerWidth - 8) x = window.innerWidth - ttr.width - 8;
+      if (x < 8) x = 8;
+    } else if (r.top < 60) {
+      placement = 'top';
+      tooltipEl.className = 'show arrow-top';
+      x = r.left;
+      y = r.bottom + 10;
+      if (x + ttr.width > window.innerWidth - 8) x = window.innerWidth - ttr.width - 8;
+      if (x < 8) x = 8;
+    }
+    tooltipEl.style.left = x + 'px';
+    tooltipEl.style.top = y + 'px';
+  });
+}
+
+function hideTooltip() {
+  if (tooltipTimer) { clearTimeout(tooltipTimer); tooltipTimer = null; }
+  if (tooltipEl) tooltipEl.classList.remove('show');
+  tooltipCurrent = null;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function bindTooltip(el) {
+  // suppress browser native tooltip
+  if (el.title) { el.dataset.origTitle = el.title; el.removeAttribute('title'); }
+  el.addEventListener('mouseenter', () => {
+    if (tooltipTimer) clearTimeout(tooltipTimer);
+    tooltipTimer = setTimeout(() => {
+      tooltipCurrent = el;
+      showTooltip(el);
+    }, TOOLTIP_DELAY);
+  });
+  el.addEventListener('mouseleave', () => {
+    if (tooltipTimer) { clearTimeout(tooltipTimer); tooltipTimer = null; }
+    if (tooltipCurrent === el) hideTooltip();
+  });
+  el.addEventListener('mousedown', () => hideTooltip());
+}
+
+function bindAllTooltips(root) {
+  (root || document).querySelectorAll('[data-tt-name]').forEach(bindTooltip);
+}
+
+/* ============================================================
+   THEME
+   ============================================================ */
+function setTheme(theme) {
+  if (theme === 'dark') document.body.classList.add('theme-dark');
+  else document.body.classList.remove('theme-dark');
+  try { localStorage.setItem('webcad-theme', theme); } catch (e) {}
+  render();
+}
+function toggleTheme() {
+  setTheme(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function init() {
+  canvas = document.getElementById('canvas');
+  ctx = canvas.getContext('2d');
+
+  // default layers (colors tuned for light theme)
+  addLayer('0', '#1a1a1f');
+  addLayer('Walls', '#1a1a1f');
+  addLayer('Doors', '#b94a3a');
+  addLayer('Windows', '#2266c4');
+  addLayer('Rooms', '#5a6cb8');
+  addLayer('Furniture', '#6a6a72');
+  addLayer('Dimensions', '#888892');
+  addLayer('Text', '#1a1a1f');
+  state.activeLayerId = [...state.layers.values()].find(l => l.name === 'Walls').id;
+
+  // restore theme
+  try {
+    const saved = localStorage.getItem('webcad-theme');
+    if (saved === 'dark') document.body.classList.add('theme-dark');
+  } catch (e) {}
+
+  refreshLayersUI();
+  refreshSnapOptions();
+  refreshProperties();
+  refreshComponentsUI();
+  buildHelp();
+  bindAllTooltips();
+
+  resize();
+  window.addEventListener('resize', resize);
+  setupEvents();
+
+  // toolbar
+  document.querySelectorAll('#toolbar button[data-tool]').forEach(b => {
+    b.onclick = () => setTool(b.dataset.tool);
+  });
+
+  // topbar
+  document.getElementById('btn-new').onclick = () => {
+    if (state.isDirty && !confirm('Discard current drawing?')) return;
+    state.entities.clear(); state.selection.clear();
+    state.history = []; state.historyIndex = -1;
+    pushHistory();
+    render();
+  };
+  document.getElementById('btn-save').onclick = saveJSON;
+  document.getElementById('btn-open').onclick = () => document.getElementById('file-input').click();
+  document.getElementById('file-input').onchange = (ev) => { if (ev.target.files[0]) openJSON(ev.target.files[0]); };
+  document.getElementById('btn-export-svg').onclick = exportSVG;
+  document.getElementById('btn-export-png').onclick = exportPNG;
+  document.getElementById('btn-undo').onclick = undo;
+  document.getElementById('btn-redo').onclick = redo;
+  document.getElementById('btn-zoom-extents').onclick = zoomExtents;
+  document.getElementById('btn-zoom-in').onclick = () => zoomBy(1.2);
+  document.getElementById('btn-zoom-out').onclick = () => zoomBy(1 / 1.2);
+  document.getElementById('btn-help').onclick = () => {
+    const o = document.getElementById('help-overlay');
+    o.style.display = o.style.display === 'block' ? 'none' : 'block';
+  };
+  document.getElementById('btn-theme').onclick = toggleTheme;
+  document.getElementById('units-select').onchange = (ev) => { state.units = ev.target.value; render(); };
+  document.getElementById('layer-add').onclick = () => {
+    const name = prompt('Layer name:', 'Layer ' + state.layers.size);
+    if (name) {
+      const colors = ['#ffaa00', '#ff5577', '#55ccff', '#aaffaa', '#ffff99', '#ff77dd', '#77ddff'];
+      addLayer(name, colors[state.layers.size % colors.length]);
+      refreshLayersUI();
+    }
+  };
+
+  // status bar toggles
+  document.getElementById('t-grid').onclick = () => { state.grid.enabled = !state.grid.enabled; updateStatus(); render(); };
+  document.getElementById('t-ortho').onclick = () => { state.ortho = !state.ortho; if (state.ortho) state.polar = false; updateStatus(); render(); };
+  document.getElementById('t-snap').onclick = () => { state.snapEnabled = !state.snapEnabled; updateStatus(); render(); };
+  document.getElementById('t-polar').onclick = () => { state.polar = !state.polar; if (state.polar) state.ortho = false; updateStatus(); render(); };
+
+  // command line
+  const cmdInput = document.getElementById('cmd-input');
+  cmdInput.onkeydown = (ev) => {
+    if (ev.key === 'Enter') {
+      const v = cmdInput.value;
+      cmdInput.value = '';
+      execCommand(v);
+    }
+    if (ev.key === 'Escape') {
+      cmdInput.value = '';
+      cmdInput.blur();
+      canvas.focus();
+    }
+  };
+
+  setTool('select');
+  pushHistory();
+  updateStatus();
+  canvas.focus();
+  logMsg('Welcome to WebCAD. Press ? for shortcuts. Type a command (L, C, REC, ...) or pick a tool.', 'info');
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
