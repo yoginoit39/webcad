@@ -785,6 +785,7 @@ function pushHistory() {
   state.historyIndex = state.history.length - 1;
   state.isDirty = true;
   updateStatus();
+  render();
 }
 function undo() {
   if (state.historyIndex <= 0) { logMsg('Nothing to undo', 'info'); return; }
