@@ -1212,6 +1212,8 @@ function drawSnapIndicator(snap) {
       ctx.stroke();
       break;
   }
+  // skip text label when an active tool is drawing a preview (it puts its own label there)
+  if (state.activeTool && state.activeTool.drawPreview && activeToolName !== 'select' && activeToolName !== 'erase') return;
   ctx.fillStyle = ACC;
   ctx.font = '10px -apple-system, sans-serif';
   ctx.fillText(snap.type, s.x + 9, s.y - 7);
@@ -1231,10 +1233,27 @@ function drawSelectBox() {
   ctx.setLineDash([]);
 }
 
+function adaptColor(color) {
+  if (!color || !document.body.classList.contains('theme-dark')) return color;
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(color);
+  if (!m) return color;
+  const hex = m[1];
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+  if (lum < 110) {
+    // too dark for dark theme — invert toward bright
+    const ir = 255 - r, ig = 255 - g, ib = 255 - b;
+    return '#' + [ir, ig, ib].map(x => x.toString(16).padStart(2, '0')).join('');
+  }
+  return color;
+}
+
 function drawEntity(e, highlight = false, hover = false) {
   const layer = state.layers.get(e.layer);
   if (!layer || !layer.visible) return;
-  let color = layer.color || '#dddddd';
+  let color = adaptColor(layer.color || '#dddddd');
   if (highlight) color = '#4aa3ff';
   else if (hover) color = '#a5d4ff';
   ctx.strokeStyle = color;
@@ -2858,7 +2877,7 @@ function drawRoom(e, color, highlight, hover) {
     if (i === 0) ctx.moveTo(sp.x, sp.y); else ctx.lineTo(sp.x, sp.y);
   }
   ctx.closePath();
-  const fill = e.floorColor || '#dceaff';
+  const fill = adaptColor(e.floorColor || '#dceaff');
   ctx.fillStyle = highlight ? fill + 'aa' : (hover ? fill + '88' : fill + '55');
   ctx.fill();
   if (highlight) {
