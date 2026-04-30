@@ -2945,20 +2945,23 @@ function formatArea(a) {
 
 function drawRoom(e, color, highlight, hover) {
   if (!e.boundary || e.boundary.length < 3) return;
-  // floor fill
+  // boundary path
   ctx.beginPath();
   for (let i = 0; i < e.boundary.length; i++) {
     const sp = w2s(e.boundary[i]);
     if (i === 0) ctx.moveTo(sp.x, sp.y); else ctx.lineTo(sp.x, sp.y);
   }
   ctx.closePath();
+  // floor fill
   const fill = adaptColor(e.floorColor || '#dceaff');
   ctx.fillStyle = highlight ? fill + 'aa' : (hover ? fill + '88' : fill + '55');
   ctx.fill();
-  if (highlight) {
-    ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
-    ctx.stroke(); ctx.setLineDash([]);
-  }
+  // outline — always visible so manually-drawn zones are seen even with light fill
+  ctx.strokeStyle = color;
+  ctx.lineWidth = highlight ? 2 : 1;
+  if (highlight) ctx.setLineDash([6, 4]);
+  ctx.stroke();
+  if (highlight) ctx.setLineDash([]);
   // labels
   if (!e.labelPos) return;
   const lp = w2s(e.labelPos);
