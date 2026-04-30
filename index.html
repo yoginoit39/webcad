@@ -50,21 +50,39 @@ body { background: var(--bg); color: var(--ink); display: flex; flex-direction: 
 
 #main { flex: 1; display: flex; min-height: 0; overflow: hidden; }
 
-#toolbar { width: 50px; background: var(--panel); border-right: 1px solid var(--border); padding: 6px; display: flex; flex-direction: column; gap: 2px; min-height: 0; overflow-y: auto; flex-shrink: 0; scrollbar-width: thin; }
-#toolbar::-webkit-scrollbar { width: 4px; }
-#toolbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-#toolbar button { background: transparent; color: var(--ink); border: 1px solid transparent; padding: 4px; cursor: pointer; font-size: 14px; border-radius: 6px; height: 30px; min-height: 30px; display: flex; align-items: center; justify-content: center; transition: background 80ms ease; flex-shrink: 0; }
+#toolbar {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: 0 12px 36px rgba(15,15,30,0.10), 0 1px 3px rgba(15,15,30,0.06);
+  z-index: 100;
+}
+#toolbar .tb-row { display: flex; gap: 1px; align-items: center; }
+#toolbar button { background: transparent; color: var(--ink); border: 1px solid transparent; padding: 0; cursor: pointer; font-size: 15px; border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: background 80ms ease, color 80ms ease; }
 #toolbar button:hover { background: var(--hover); }
-#toolbar button.active { background: var(--active-bg); color: var(--active-ink); border-color: transparent; }
-#toolbar .tool-sep { height: 1px; background: var(--border); margin: 4px 4px; flex-shrink: 0; }
+#toolbar button.active { background: var(--active-bg); color: var(--active-ink); }
+#toolbar .tool-sep { width: 1px; height: 22px; background: var(--border); margin: 0 5px; }
 
 #canvas-wrap { flex: 1; position: relative; min-width: 0; background: var(--canvas-bg); }
 #canvas { display: block; cursor: crosshair; outline: none; }
 
 #right-panel { width: 248px; background: var(--panel); border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; overflow-y: auto; flex-shrink: 0; }
 .panel-section { border-bottom: 1px solid var(--border); }
-.panel-header { background: var(--panel); padding: 8px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
-.panel-body { padding: 6px 10px 10px; max-height: 300px; overflow-y: auto; font-size: 12px; }
+.panel-header { background: var(--panel); padding: 10px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+.panel-header:hover { color: var(--ink); }
+.panel-header .ph-title { display: flex; align-items: center; gap: 6px; }
+.panel-header .ph-title::before { content: '▾'; font-size: 9px; color: var(--muted); transition: transform 120ms ease; display: inline-block; }
+.panel-section.collapsed .panel-header .ph-title::before { transform: rotate(-90deg); }
+.panel-section.collapsed .panel-body { display: none; }
+.panel-body { padding: 4px 12px 10px; max-height: 320px; overflow-y: auto; font-size: 12px; }
 
 .layer-row { display: flex; align-items: center; gap: 6px; padding: 4px 6px; cursor: pointer; border-radius: 6px; }
 .layer-row:hover { background: var(--hover); }
@@ -179,59 +197,58 @@ body { background: var(--bg); color: var(--ink); display: flex; flex-direction: 
 
 <div id="main">
 
-  <div id="toolbar">
-    <button data-tool="select" data-tt-name="Select" data-tt-key="S / Esc" data-tt-desc="Pick objects to edit. Click for one, Shift-click to add, drag a window to select many. Drag right-to-left for crossing select.">▭</button>
-    <div class="tool-sep"></div>
-    <button data-tool="wall" data-tt-name="Wall" data-tt-key="W" data-tt-desc="Draw walls with thickness and auto-mitered corners. Click each corner; Enter to end, C to close. Asks for thickness on activation." style="font-weight:600">▥</button>
-    <button data-tool="door" data-tt-name="Door" data-tt-key="D" data-tt-desc="Place a door with its swing arc. Click the hinge point on a wall, then click the direction it opens. Auto-aligns to the nearest wall.">⌒↤</button>
-    <button data-tool="window" data-tt-name="Window" data-tt-key="WIN" data-tt-desc="Insert a window into a wall as a double-line glass with frame caps. Click two points along the wall.">▦</button>
-    <button data-tool="room" data-tt-name="Room" data-tt-key="R" data-tt-desc="Click inside a closed area bounded by walls or lines — auto-detects the boundary and labels the room with a name and computed area in sq ft.">⌂</button>
-    <div class="tool-sep"></div>
-    <button data-tool="line" data-tt-name="Line" data-tt-key="L" data-tt-desc="Draws line segments. Click each endpoint; the next line continues from the last point. Enter to end.">/</button>
-    <button data-tool="polyline" data-tt-name="Polyline" data-tt-key="PL" data-tt-desc="A connected chain of line segments treated as one object. Press C to close, Enter to finish.">⌇</button>
-    <button data-tool="rectangle" data-tt-name="Rectangle" data-tt-key="REC" data-tt-desc="Draw a rectangle by clicking two opposite corners.">▢</button>
-    <button data-tool="circle" data-tt-name="Circle" data-tt-key="C" data-tt-desc="Click the center, then click a point to set the radius.">○</button>
-    <button data-tool="arc" data-tt-name="Arc (3-point)" data-tt-key="A" data-tt-desc="Click start, then any point on the arc, then the end. The arc is fit through all three points.">⌒</button>
-    <button data-tool="ellipse" data-tt-name="Ellipse" data-tt-key="EL" data-tt-desc="Click the center, then the end of one axis, then the distance to the other axis.">⬭</button>
-    <div class="tool-sep"></div>
-    <button data-tool="text" data-tt-name="Text" data-tt-key="T" data-tt-desc="Place a single line of text. Click position, type the text, then enter the height.">T</button>
-    <button data-tool="dimension" data-tt-name="Linear Dimension" data-tt-key="DLI" data-tt-desc="Measure distance between two points. Click first extension point, second point, then where the dim line should sit. Auto-formats in feet/inches.">↔</button>
-    <button data-tool="hatch" data-tt-name="Hatch" data-tt-key="H" data-tt-desc="Fill a closed polyline with a solid color or angled line pattern. Pick the closed boundary first.">▦</button>
-    <div class="tool-sep"></div>
-    <button data-tool="erase" data-tt-name="Erase" data-tt-key="E / Delete" data-tt-desc="Delete objects by clicking them, or select first and press Delete.">✕</button>
-    <button data-tool="move" data-tt-name="Move" data-tt-key="M" data-tt-desc="Select objects, click a base point, then click the destination. Live ghost preview shows where things will land.">⤧</button>
-    <button data-tool="copy" data-tt-name="Copy" data-tt-key="CO" data-tt-desc="Like Move but creates duplicates. Stays active so you can drop multiple copies. Esc to finish.">⎘</button>
-    <button data-tool="rotate" data-tt-name="Rotate" data-tt-key="RO" data-tt-desc="Select, click a pivot point, then click to set the rotation angle.">↻</button>
-    <button data-tool="mirror" data-tt-name="Mirror" data-tt-key="MI" data-tt-desc="Flip objects across a line. Select, click the two endpoints of the mirror line. Choose to keep or delete the source.">⇋</button>
-    <button data-tool="scale" data-tt-name="Scale" data-tt-key="SC" data-tt-desc="Resize objects uniformly around a base point. Drag distance from base sets the scale factor.">⤢</button>
-    <button data-tool="offset" data-tt-name="Offset" data-tt-key="O" data-tt-desc="Create a parallel copy of an object at a fixed distance. Type the distance, click an object, then click which side to offset toward.">⫽</button>
-    <button data-tool="trim" data-tt-name="Trim" data-tt-key="TR" data-tt-desc="Cut a line or circle at its intersections with other objects. Click the segment you want to remove.">⌧</button>
-    <button data-tool="fillet" data-tt-name="Fillet" data-tt-key="F" data-tt-desc="Round a corner between two lines with an arc of given radius. Type radius, click each line.">⌐</button>
-  </div>
-
   <div id="canvas-wrap">
     <canvas id="canvas" tabindex="0"></canvas>
     <div id="help-overlay"></div>
+    <div id="toolbar">
+      <div class="tb-row">
+        <button data-tool="select" data-tt-name="Select" data-tt-key="S / Esc" data-tt-desc="Pick objects to edit. Click for one, Shift-click to add, drag a window to select many. Drag right-to-left for crossing select.">▭</button>
+        <div class="tool-sep"></div>
+        <button data-tool="wall" data-tt-name="Wall" data-tt-key="W" data-tt-desc="Draw walls with thickness and auto-mitered corners. Click each corner; Enter to end, C to close. Asks for thickness on activation." style="font-weight:700">▥</button>
+        <button data-tool="door" data-tt-name="Door" data-tt-key="D" data-tt-desc="Place a door with its swing arc. Click the hinge point on a wall, then click the direction it opens. Auto-aligns to the nearest wall.">⌒↤</button>
+        <button data-tool="window" data-tt-name="Window" data-tt-key="WIN" data-tt-desc="Insert a window into a wall as a double-line glass with frame caps. Click two points along the wall.">▦</button>
+        <button data-tool="room" data-tt-name="Room" data-tt-key="R" data-tt-desc="Click inside a closed area bounded by walls or lines — auto-detects the boundary and labels the room with a name and computed area in sq ft.">⌂</button>
+        <div class="tool-sep"></div>
+        <button data-tool="line" data-tt-name="Line" data-tt-key="L" data-tt-desc="Draws line segments. Click each endpoint; the next line continues from the last point. Enter to end.">/</button>
+        <button data-tool="polyline" data-tt-name="Polyline" data-tt-key="PL" data-tt-desc="A connected chain of line segments treated as one object. Press C to close, Enter to finish.">⌇</button>
+        <button data-tool="rectangle" data-tt-name="Rectangle" data-tt-key="REC" data-tt-desc="Draw a rectangle by clicking two opposite corners.">▢</button>
+        <button data-tool="circle" data-tt-name="Circle" data-tt-key="C" data-tt-desc="Click the center, then click a point to set the radius.">○</button>
+        <button data-tool="arc" data-tt-name="Arc (3-point)" data-tt-key="A" data-tt-desc="Click start, then any point on the arc, then the end. The arc is fit through all three points.">⌒</button>
+        <button data-tool="ellipse" data-tt-name="Ellipse" data-tt-key="EL" data-tt-desc="Click the center, then the end of one axis, then the distance to the other axis.">⬭</button>
+      </div>
+      <div class="tb-row">
+        <button data-tool="text" data-tt-name="Text" data-tt-key="T" data-tt-desc="Place a single line of text. Click position, type the text, then enter the height.">T</button>
+        <button data-tool="dimension" data-tt-name="Linear Dimension" data-tt-key="DLI" data-tt-desc="Measure distance between two points. Click first extension point, second point, then where the dim line should sit. Auto-formats in feet/inches.">↔</button>
+        <button data-tool="hatch" data-tt-name="Hatch" data-tt-key="H" data-tt-desc="Fill a closed polyline with a solid color or angled line pattern. Pick the closed boundary first.">▦</button>
+        <div class="tool-sep"></div>
+        <button data-tool="erase" data-tt-name="Erase" data-tt-key="E / Delete" data-tt-desc="Delete objects by clicking them, or select first and press Delete.">✕</button>
+        <button data-tool="move" data-tt-name="Move" data-tt-key="M" data-tt-desc="Select objects, click a base point, then click the destination. Live ghost preview shows where things will land.">⤧</button>
+        <button data-tool="copy" data-tt-name="Copy" data-tt-key="CO" data-tt-desc="Like Move but creates duplicates. Stays active so you can drop multiple copies. Esc to finish.">⎘</button>
+        <button data-tool="rotate" data-tt-name="Rotate" data-tt-key="RO" data-tt-desc="Select, click a pivot point, then click to set the rotation angle.">↻</button>
+        <button data-tool="mirror" data-tt-name="Mirror" data-tt-key="MI" data-tt-desc="Flip objects across a line. Select, click the two endpoints of the mirror line. Choose to keep or delete the source.">⇋</button>
+        <button data-tool="scale" data-tt-name="Scale" data-tt-key="SC" data-tt-desc="Resize objects uniformly around a base point. Drag distance from base sets the scale factor.">⤢</button>
+        <button data-tool="offset" data-tt-name="Offset" data-tt-key="O" data-tt-desc="Create a parallel copy of an object at a fixed distance. Type the distance, click an object, then click which side to offset toward.">⫽</button>
+        <button data-tool="trim" data-tt-name="Trim" data-tt-key="TR" data-tt-desc="Cut a line or circle at its intersections with other objects. Click the segment you want to remove.">⌧</button>
+        <button data-tool="fillet" data-tt-name="Fillet" data-tt-key="F" data-tt-desc="Round a corner between two lines with an arc of given radius. Type radius, click each line.">⌐</button>
+      </div>
+    </div>
   </div>
 
   <div id="right-panel">
     <div class="panel-section">
-      <div class="panel-header">
-        <span>Layers</span>
-        <span><button id="layer-add" style="background:#3c3c3c;color:#ddd;border:1px solid #555;padding:1px 6px;cursor:pointer;">+</button></span>
-      </div>
+      <div class="panel-header"><span class="ph-title">Layers</span><button id="layer-add">+</button></div>
       <div class="panel-body" id="layers-list"></div>
     </div>
     <div class="panel-section">
-      <div class="panel-header"><span>Properties</span></div>
+      <div class="panel-header"><span class="ph-title">Properties</span></div>
       <div class="panel-body" id="properties"></div>
     </div>
     <div class="panel-section">
-      <div class="panel-header"><span>Components</span></div>
+      <div class="panel-header"><span class="ph-title">Components</span></div>
       <div class="panel-body" id="components-list"></div>
     </div>
-    <div class="panel-section">
-      <div class="panel-header"><span>Snap</span></div>
+    <div class="panel-section collapsed">
+      <div class="panel-header"><span class="ph-title">Object Snap</span></div>
       <div class="panel-body" id="snap-options"></div>
     </div>
   </div>
@@ -4059,6 +4076,15 @@ function init() {
       canvas.focus();
     }
   };
+
+  // collapsible panel sections
+  document.querySelectorAll('.panel-header').forEach(h => {
+    h.addEventListener('click', (ev) => {
+      // ignore clicks on buttons inside the header
+      if (ev.target.closest('button')) return;
+      h.parentElement.classList.toggle('collapsed');
+    });
+  });
 
   setTool('select');
   pushHistory();
