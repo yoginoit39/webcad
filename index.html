@@ -208,6 +208,7 @@ body { background: var(--bg); color: var(--ink); display: flex; flex-direction: 
         <button data-tool="door" data-tt-name="Door" data-tt-key="D" data-tt-desc="Place a door with its swing arc. Click the hinge point on a wall, then click the direction it opens. Auto-aligns to the nearest wall.">⌒↤</button>
         <button data-tool="window" data-tt-name="Window" data-tt-key="WIN" data-tt-desc="Insert a window into a wall as a double-line glass with frame caps. Click two points along the wall.">▦</button>
         <button data-tool="room" data-tt-name="Room" data-tt-key="R" data-tt-desc="Click inside a closed area bounded by walls or lines — auto-detects the boundary and labels the room with a name and computed area in sq ft.">⌂</button>
+        <button data-tool="zone" data-tt-name="Zone" data-tt-key="Z" data-tt-desc="Draw a polygon manually to define a zone (e.g. yard, lot, outdoor area). Click each corner; Enter or C to close. Auto-labels with name and area in ft².">⬡</button>
         <div class="tool-sep"></div>
         <button data-tool="line" data-tt-name="Line" data-tt-key="L" data-tt-desc="Draws line segments. Click each endpoint; the next line continues from the last point. Enter to end.">/</button>
         <button data-tool="polyline" data-tt-name="Polyline" data-tt-key="PL" data-tt-desc="A connected chain of line segments treated as one object. Press C to close, Enter to finish.">⌇</button>
@@ -1456,22 +1457,7 @@ function drawWall(e, color, highlight, hover) {
   const edges = computeWallEdges(e.points, e.thickness || 0.5);
   if (!edges) return;
   ctx.lineCap = 'butt'; ctx.lineJoin = 'miter'; ctx.miterLimit = 6;
-  // body fill - subtle for floor plan look
-  if (!highlight && !hover) {
-    ctx.fillStyle = color + '22';
-    ctx.beginPath();
-    for (let i = 0; i < edges.left.length; i++) {
-      const p = w2s(edges.left[i]);
-      if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
-    }
-    for (let i = edges.right.length - 1; i >= 0; i--) {
-      const p = w2s(edges.right[i]);
-      ctx.lineTo(p.x, p.y);
-    }
-    ctx.closePath();
-    ctx.fill();
-  }
-  // edges
+  // edges (no body fill — clean Rayon-style two-line wall)
   ctx.strokeStyle = color;
   ctx.lineWidth = highlight ? 2.5 : (hover ? 1.5 : 1);
   for (const side of [edges.left, edges.right]) {
@@ -3100,6 +3086,77 @@ tools.room = {
   drawPreview() {},
 };
 
+tools.zone = {
+  prompt: 'Click first vertex of zone:',
+  state: { points: [] },
+  onActivate() {
+    this.state = { points: [] };
+    setPrompt('Click first vertex of zone:');
+  },
+  onMouseDown(world, screen, ev) {
+    if (ev.button !== 0) return;
+    let p = state.cursor.snap || world;
+    if (this.state.points.length > 0) p = applyConstraints(this.state.points[this.state.points.length - 1], p);
+    this.state.points.push(p);
+    setPrompt('Click next vertex [Enter / C = close, Esc = cancel]:');
+  },
+  onKeyDown(ev) {
+    if ((ev.key === 'Enter' || ev.key.toLowerCase() === 'c') && this.state.points.length >= 3) {
+      const boundary = this.state.points.slice();
+      let nZones = 0;
+      for (const ent of state.entities.values()) if (ent.type === 'room' && (ent.name || '').toLowerCase().startsWith('zone')) nZones++;
+      const name = prompt('Zone name:', 'Zone ' + (nZones + 1));
+      if (name === null) { this.state = { points: [] }; setPrompt('Click first vertex of zone:'); return; }
+      addEntity({
+        type: 'room',
+        boundary,
+        labelPos: polyCentroid(boundary),
+        name: name || 'Zone',
+        area: polyArea(boundary),
+        floorColor: '#f4f4f6',
+        layer: findLayerId('Rooms'),
+      });
+      pushHistory();
+      this.state = { points: [] };
+      logMsg('Created zone: ' + (name || 'Zone') + ' (' + formatArea(polyArea(boundary)) + ')', 'info');
+      setTool('select');
+    } else if (ev.key === 'Escape') {
+      this.state = { points: [] };
+      setTool('select');
+    }
+  },
+  drawPreview(c) {
+    if (this.state.points.length === 0) return;
+    let to = state.cursor.snap || state.cursor.world;
+    const last = this.state.points[this.state.points.length - 1];
+    to = applyConstraints(last, to);
+    c.strokeStyle = themeColors().preview; c.lineWidth = 1; c.setLineDash([4, 4]);
+    c.beginPath();
+    for (let i = 0; i < this.state.points.length; i++) {
+      const p = w2s(this.state.points[i]);
+      if (i === 0) c.moveTo(p.x, p.y); else c.lineTo(p.x, p.y);
+    }
+    const sp = w2s(to);
+    c.lineTo(sp.x, sp.y);
+    if (this.state.points.length >= 2) {
+      const start = w2s(this.state.points[0]);
+      c.lineTo(start.x, start.y);
+    }
+    c.stroke();
+    c.setLineDash([]);
+    if (this.state.points.length >= 2) {
+      const closePts = [...this.state.points, to];
+      const a = polyArea(closePts);
+      const cp = w2s(polyCentroid(closePts));
+      c.fillStyle = themeColors().label;
+      c.font = '11px -apple-system, sans-serif';
+      c.textAlign = 'center';
+      c.fillText(formatArea(a), cp.x, cp.y);
+      c.textAlign = 'start';
+    }
+  },
+};
+
 function pickRoomColor(name) {
   const palette = {
     living: '#f0e8d8', bed: '#e1ecf6', bath: '#d8ecf0',
@@ -3115,8 +3172,9 @@ function pickRoomColor(name) {
    PAN / ZOOM
    ============================================================ */
 let panState = { active: false, lastX: 0, lastY: 0 };
+let spaceHeld = false;
 function startPan(x, y) { panState = { active: true, lastX: x, lastY: y }; canvas.style.cursor = 'grabbing'; }
-function endPan() { panState.active = false; canvas.style.cursor = 'crosshair'; }
+function endPan() { panState.active = false; canvas.style.cursor = spaceHeld ? 'grab' : 'crosshair'; }
 function doPan(x, y) {
   const dx = (x - panState.lastX) / state.viewport.scale;
   const dy = (panState.lastY - y) / state.viewport.scale;
@@ -3189,6 +3247,7 @@ const commandAliases = {
   'd': 'door', 'door': 'door',
   'win': 'window', 'window': 'window',
   'r': 'room', 'room': 'room',
+  'z': 'zone', 'zone': 'zone',
 };
 
 function execCommand(cmd) {
@@ -3529,7 +3588,7 @@ function setupEvents() {
     canvas.focus();
     const r = canvas.getBoundingClientRect();
     const sx = ev.clientX - r.left, sy = ev.clientY - r.top;
-    if (ev.button === 1 || (ev.button === 2)) {
+    if (ev.button === 1 || ev.button === 2 || (ev.button === 0 && spaceHeld)) {
       startPan(sx, sy);
       ev.preventDefault();
       return;
@@ -3556,6 +3615,14 @@ function setupEvents() {
 
   document.addEventListener('keydown', (ev) => {
     if (document.activeElement === document.getElementById('cmd-input')) return;
+
+    // space-pan
+    if (ev.code === 'Space' && !ev.repeat && !spaceHeld) {
+      spaceHeld = true;
+      canvas.style.cursor = panState.active ? 'grabbing' : 'grab';
+      ev.preventDefault();
+      return;
+    }
 
     // function keys / toggles
     if (ev.key === 'F3') { ev.preventDefault(); state.snapEnabled = !state.snapEnabled; updateStatus(); render(); return; }
@@ -3589,6 +3656,13 @@ function setupEvents() {
         pushHistory();
         render();
       }
+    }
+  });
+
+  document.addEventListener('keyup', (ev) => {
+    if (ev.code === 'Space' && spaceHeld) {
+      spaceHeld = false;
+      if (!panState.active) canvas.style.cursor = 'crosshair';
     }
   });
 }
@@ -3629,6 +3703,7 @@ function buildHelp() {
       <tr><td><code>D</code></td><td>Door (click hinge, then swing direction)</td></tr>
       <tr><td><code>WIN</code></td><td>Window (placed on wall)</td></tr>
       <tr><td><code>R</code></td><td>Room (click inside enclosed area → name + area)</td></tr>
+      <tr><td><code>Z</code></td><td>Zone (draw polygon manually → name + area)</td></tr>
     </table>
     <h3>Drawing</h3>
     <table>
@@ -3657,6 +3732,7 @@ function buildHelp() {
     <h3>View</h3>
     <table>
       <tr><td>Wheel</td><td>Zoom</td></tr>
+      <tr><td><code>Space</code> + drag</td><td>Pan (Figma-style)</td></tr>
       <tr><td>Right-click drag</td><td>Pan</td></tr>
       <tr><td>Middle-click drag</td><td>Pan</td></tr>
       <tr><td><code>ZE</code></td><td>Zoom extents</td></tr>
