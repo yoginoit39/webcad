@@ -456,7 +456,16 @@ function deleteLayer(id) {
 const Ent = {
   bbox(e) {
     switch (e.type) {
-      case 'line': return { min: { x: Math.min(e.x1, e.x2), y: Math.min(e.y1, e.y2) }, max: { x: Math.max(e.x1, e.x2), y: Math.max(e.y1, e.y2) } };
+      case 'line': {
+        let xs = [e.x1, e.x2], ys = [e.y1, e.y2];
+        if (e.bulge && Math.abs(e.bulge) > 1e-6) {
+          const mx = (e.x1 + e.x2) / 2, my = (e.y1 + e.y2) / 2;
+          const dx = e.x2 - e.x1, dy = e.y2 - e.y1, l = Math.hypot(dx, dy) || 1;
+          const nx = -dy / l, ny = dx / l;
+          xs.push(mx + e.bulge * nx); ys.push(my + e.bulge * ny);
+        }
+        return { min: { x: Math.min(...xs), y: Math.min(...ys) }, max: { x: Math.max(...xs), y: Math.max(...ys) } };
+      }
       case 'polyline': {
         let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
         for (const p of e.points) { mnx = Math.min(mnx, p.x); mny = Math.min(mny, p.y); mxx = Math.max(mxx, p.x); mxy = Math.max(mxy, p.y); }
@@ -508,7 +517,13 @@ const Ent = {
       case 'line':
         out.push({ type: 'endpoint', x: e.x1, y: e.y1 });
         out.push({ type: 'endpoint', x: e.x2, y: e.y2 });
-        out.push({ type: 'midpoint', x: (e.x1 + e.x2) / 2, y: (e.y1 + e.y2) / 2 });
+        if (e.bulge && Math.abs(e.bulge) > 1e-6) {
+          const mx = (e.x1 + e.x2) / 2, my = (e.y1 + e.y2) / 2;
+          const dx = e.x2 - e.x1, dy = e.y2 - e.y1, l = Math.hypot(dx, dy) || 1;
+          out.push({ type: 'midpoint', x: mx + e.bulge * (-dy / l), y: my + e.bulge * (dx / l) });
+        } else {
+          out.push({ type: 'midpoint', x: (e.x1 + e.x2) / 2, y: (e.y1 + e.y2) / 2 });
+        }
         break;
       case 'polyline':
         for (let i = 0; i < e.points.length; i++) {
@@ -1265,6 +1280,21 @@ function drawEntity(e, highlight = false, hover = false) {
 
   switch (e.type) {
     case 'line': {
+      if (e.bulge && Math.abs(e.bulge) > 1e-6) {
+        // bent line → arc through (p1, midpoint+bulge*perp, p2)
+        const mx = (e.x1 + e.x2) / 2, my = (e.y1 + e.y2) / 2;
+        const dx = e.x2 - e.x1, dy = e.y2 - e.y1, l = Math.hypot(dx, dy) || 1;
+        const nx = -dy / l, ny = dx / l;
+        const bp = { x: mx + e.bulge * nx, y: my + e.bulge * ny };
+        const arc = arcFrom3Points({ x: e.x1, y: e.y1 }, bp, { x: e.x2, y: e.y2 });
+        if (arc) {
+          const c = w2s({ x: arc.cx, y: arc.cy });
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, arc.r * state.viewport.scale, -arc.endAngle, -arc.startAngle, false);
+          ctx.stroke();
+          break;
+        }
+      }
       const a = w2s({ x: e.x1, y: e.y1 }), b = w2s({ x: e.x2, y: e.y2 });
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       break;
@@ -1329,6 +1359,18 @@ function drawEntity(e, highlight = false, hover = false) {
     for (const g of grips) {
       const sp = w2s(g);
       ctx.fillRect(sp.x - 3, sp.y - 3, 6, 6);
+    }
+    // bulge handle for lines (drag to bend into an arc)
+    if (e.type === 'line') {
+      const mx = (e.x1 + e.x2) / 2, my = (e.y1 + e.y2) / 2;
+      const dx = e.x2 - e.x1, dy = e.y2 - e.y1, l = Math.hypot(dx, dy) || 1;
+      const nx = -dy / l, ny = dx / l;
+      const bp = w2s({ x: mx + (e.bulge || 0) * nx, y: my + (e.bulge || 0) * ny });
+      ctx.fillStyle = '#4aa3ff';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(bp.x, bp.y, 5, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
     }
   }
 }
@@ -1599,12 +1641,37 @@ function setTool(name, opts = {}) {
 
 function setPrompt(s) { document.getElementById('cmd-prompt').textContent = s; }
 
+const bulgeDrag = { active: false, lineId: null };
+
+function hitBulgeHandle(world) {
+  const tol = pxToWorld(8);
+  for (const id of state.selection) {
+    const e = state.entities.get(id);
+    if (!e || e.type !== 'line') continue;
+    const layer = state.layers.get(e.layer);
+    if (!layer || layer.locked) continue;
+    const mx = (e.x1 + e.x2) / 2, my = (e.y1 + e.y2) / 2;
+    const dx = e.x2 - e.x1, dy = e.y2 - e.y1, l = Math.hypot(dx, dy) || 1;
+    const nx = -dy / l, ny = dx / l;
+    const bp = { x: mx + (e.bulge || 0) * nx, y: my + (e.bulge || 0) * ny };
+    if (G.dist(world, bp) <= tol) return id;
+  }
+  return null;
+}
+
 /* ----- SELECT TOOL ----- */
 tools.select = {
   prompt: 'Select objects:',
   onActivate() { canvas.style.cursor = 'default'; },
   onMouseDown(world, screen, ev) {
     if (ev.button !== 0) return;
+    // bulge handle takes priority over normal selection
+    const handleId = hitBulgeHandle(world);
+    if (handleId) {
+      bulgeDrag.active = true;
+      bulgeDrag.lineId = handleId;
+      return;
+    }
     const id = selectAt(world);
     if (id) {
       if (!ev.shiftKey) state.selection.clear();
@@ -1619,9 +1686,27 @@ tools.select = {
     }
   },
   onMouseMove(world) {
+    if (bulgeDrag.active) {
+      const e = state.entities.get(bulgeDrag.lineId);
+      if (!e) { bulgeDrag.active = false; return; }
+      const mx = (e.x1 + e.x2) / 2, my = (e.y1 + e.y2) / 2;
+      const dx = e.x2 - e.x1, dy = e.y2 - e.y1, l = Math.hypot(dx, dy) || 1;
+      const nx = -dy / l, ny = dx / l;
+      const wp = state.cursor.snap || world;
+      // perpendicular component of (wp - midpoint) along (nx, ny)
+      e.bulge = (wp.x - mx) * nx + (wp.y - my) * ny;
+      // snap small bulge values to exactly 0 (straight line)
+      if (Math.abs(e.bulge) < pxToWorld(4)) e.bulge = 0;
+      return;
+    }
     if (selectBox.active) selectBox.end = { ...world };
   },
   onMouseUp(world, screen, ev) {
+    if (bulgeDrag.active) {
+      bulgeDrag.active = false;
+      pushHistory();
+      return;
+    }
     if (selectBox.active) {
       const ids = selectInBox(selectBox.start, selectBox.end);
       for (const id of ids) state.selection.add(id);
@@ -2271,6 +2356,8 @@ function mirrorEntity(e, a, b) {
     const ns = mAng(e.endAngle), ne = mAng(e.startAngle);
     e.startAngle = ns; e.endAngle = ne;
   }
+  // bent line: bulge flips because perpendicular flips through mirror
+  if (e.type === 'line' && e.bulge) e.bulge = -e.bulge;
 }
 
 /* ----- SCALE ----- */
@@ -2340,6 +2427,7 @@ function scaleEntity(e, c, f) {
     e.width *= f;
     if (e.thickness) e.thickness *= f;
   }
+  if (e.type === 'line' && e.bulge) e.bulge *= f;
 }
 
 /* ----- OFFSET ----- */
@@ -3368,6 +3456,16 @@ function refreshProperties() {
     addRow('X2', e.x2.toFixed(4), v => { e.x2 = parseFloat(v); pushHistory(); render(); });
     addRow('Y2', e.y2.toFixed(4), v => { e.y2 = parseFloat(v); pushHistory(); render(); });
     addRow('Length', G.dist({ x: e.x1, y: e.y1 }, { x: e.x2, y: e.y2 }).toFixed(4), () => {});
+    addRow('Bulge', (e.bulge || 0).toFixed(4), v => { e.bulge = parseFloat(v) || 0; pushHistory(); render(); });
+    if (e.bulge && Math.abs(e.bulge) > 1e-6) {
+      const r = document.createElement('div'); r.className = 'prop-row';
+      r.innerHTML = `<label></label>`;
+      const btn = document.createElement('button');
+      btn.textContent = 'Straighten';
+      btn.style.cssText = 'flex:1; background: var(--panel-2); border: 1px solid var(--border); color: var(--ink); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;';
+      btn.onclick = () => { e.bulge = 0; pushHistory(); render(); refreshProperties(); };
+      r.appendChild(btn); div.appendChild(r);
+    }
   } else if (e.type === 'circle') {
     addRow('CX', e.cx.toFixed(4), v => { e.cx = parseFloat(v); pushHistory(); render(); });
     addRow('CY', e.cy.toFixed(4), v => { e.cy = parseFloat(v); pushHistory(); render(); });
